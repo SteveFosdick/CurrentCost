@@ -56,7 +56,7 @@ typedef enum {
 static int main_loop(struct ftdi_context *ftdi) {
     state_t state = ST_GROUND;
     unsigned char buf[4096];
-    unsigned char *ptr, *end;
+    unsigned char *ptr, *end, *copy = NULL;
     int status = 0;
     int old_day = 0;
     int result, ch, flush;
@@ -116,17 +116,24 @@ static int main_loop(struct ftdi_context *ftdi) {
 			    fprintf(ofp, "<msg><host-tstamp>%s</host-tstamp>", stamp);
 			}
 			state = ST_COPY;
+			copy = ptr;
 		    } else
 			state = ST_GROUND;
 		    break;
 		case ST_COPY:
-		    if (ofp != NULL)
-			putc(ch, ofp);
 		    if (ch == '\n') {
+			if (ofp != NULL)
+			    fwrite(copy, ptr-copy, 1, ofp);
 			state = ST_GROUND;
+			copy = NULL;
 			flush = 1;
 		    }
 		}
+	    }
+	    if (copy) {
+		if (ofp != NULL)
+		    fwrite(copy, ptr-copy, 1, ofp);
+		copy = NULL;
 	    }
 	    if (flush && ofp != NULL)
 		fflush(ofp);
