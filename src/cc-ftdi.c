@@ -1,3 +1,5 @@
+#include "cc-common.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -7,6 +9,8 @@
 #include <time.h>
 
 #include <ftdi.h>
+
+const char prog_name[] = "cc-ftdi";
 
 static const char dflt_dir[] = "/share/fozzy/Data/CurrentCost";
 static const char log_file[] = "cc-ftdi.log";
@@ -23,21 +27,6 @@ static volatile int exit_requested = 0;
 
 static void exit_handler(int sig) {
     exit_requested = sig;
-}
-
-static void log_msg(const char *msg, ...) {
-    time_t secs;
-    struct tm *tp;
-    char stamp[24];
-    va_list ap;
-
-    va_start(ap, msg);
-    time(&secs);
-    tp = gmtime(&secs);
-    strftime(stamp, sizeof stamp, "%d/%m/%Y %H:%M:%S", tp);
-    fprintf(stderr, "%s " MSG_PREFIX, stamp);
-    vfprintf(stderr, msg, ap);
-    putc('\n', stderr);
 }
 
 static void report_ftdi_err(int result, struct ftdi_context *ftdi, const char *msg) {
@@ -163,11 +152,11 @@ static int cc_ftdi(int vendor_id, int product_id, int interface) {
 			if (sigaction(SIGINT, &sa, NULL) == 0)
 			    status = main_loop(&ftdi);
 			else {
-			    log_msg("unable to set handler for SIGINT - %s", strerror(errno));
+			    log_syserr("unable to set handler for SIGINT");
 			    status = 12;
 			}
 		    } else {
-			log_msg("unable to set handler for SIGTERM - %s", strerror(errno));
+			log_syserr("unable to set handler for SIGTERM");
 			status = 11;
 		    }
 		} else {
@@ -213,24 +202,24 @@ static int start_daemon(const char *dir, int vendor_id, int product_id, int inte
 		    if (setsid() >= 0)
 			status = cc_ftdi(vendor_id, product_id, interface);
 		    else {
-			log_msg("unable to set session id - %s", strerror(errno));
+			log_syserr("unable to set session id");
 			status = 6;
 		    }
 		}
 		else if (pid == -1) {
-		    log_msg("unable to fork - %s", strerror(errno));
+		    log_syserr("unable to fork");
 		    status = 5;
 		}
 	    } else {
-		fprintf(stderr, MSG_PREFIX "unable to open log file '%s' - %s\n", log_file, strerror(errno));
+		log_syserr("unable to open log file '%s'", log_file);
 		status = 4;
 	    }
 	} else {
-	    fprintf(stderr, MSG_PREFIX "unable to chdir to '%s' - %s\n", dir, strerror(errno));
+	    log_syserr("unable to chdir to '%s'", dir);
 	    status = 3;
 	}
     } else {
-	fprintf(stderr, MSG_PREFIX "unable to open NULL device '%s' - %s\n", dev_null, strerror(errno));
+	log_syserr("unable to open NULL device '%s'", dev_null);
 	status = 2;
     }
     return status;

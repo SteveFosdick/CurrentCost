@@ -6,5 +6,7 @@ all: cc-termios cc-ftdi
 
 cc-termios: cc-termios.o
 
-cc-ftdi: cc-ftdi.o
-	$(CC) $(LDFLAGS) -o cc-ftdi cc-ftdi.o -lftdi -lusb
+CC_FTDI_MODULES = cc-ftdi.o cc-common.o
+
+cc-ftdi: $(CC_FTDI_MODULES)
+	$(CC) $(LDFLAGS) -o cc-ftdi $(CC_FTDI_MODULES) -lftdi -lusb
