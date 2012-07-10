@@ -42,7 +42,7 @@ static const char *sensor_names[] = {
     "Whole House",
     "Computers",
     "TV & Audio",
-    "Sensor 3",
+    "Utility",
     "Sensor 4",
     "Sensor 5",
     "Sensor 6",
@@ -62,13 +62,27 @@ static const char html_top[] =
     "    <meta name=\"HandheldFriendly\" content=\"true\"/>\n"
     "    <meta name=\"viewport\" content=\"target-densitydpi=device-dpi\"/>\n"
     "    <meta name=\"viewport\" content=\"initial-scale=2\"/>\n"
+    "    <link rel=\"stylesheet\" type=\"text/css\" href=\"/currentcost/currentcost.css\"/>\n"
     "  </head>\n"
     "  <body>\n"
     "    <h1>Energy Use Now</h1>\n"
-    "    <table>\n";
+    "    <table>\n"
+    "      <thead>\n"
+    "        <tr>\n"
+    "          <th>Sensor</th>\n"
+    "          <th>Consumption</th>\n"
+    "        </tr>\n"
+    "      </thead>\n"
+    "      <tbody>\n";
 
 static const char html_tail[] =
+    "        <tr>\n"
+    "          <td>Temperature</td>\n"
+    "          <td>%g</td>\n"
+    "        </tr>\n"
+    "      </tbody>\n"
     "    </table>\n"
+    "    <p>%s</p>\n"
     "  </body>\n"
     "</html>\n";
 
@@ -81,13 +95,17 @@ static void cgi_output(struct latest *l) {
     fwrite(html_top, (sizeof html_top)-1, 1, stdout);
     for (i = 0; i < MAX_SENSOR; i++) {
 	value = l->sensors[i];
-	if (value >= 0)
-	    printf("<tr><td>%s</td><td>%g</td></tr>\n", sensor_names[i], value);
+	if (value >= 0) {
+	    printf("<tr><td>%s</td><td>", sensor_names[i]);
+	    if (value >= 1000)
+		printf("%.2f Kw</td></tr>\n", value / 1000);
+	    else
+		printf("%g watts</td></tr>\n", value);
+	}
     }
     tp = localtime(&l->timestamp);
-    strftime(tmstr, sizeof tmstr, "%d/%m/%Y %H:%M:%S", tp);
-    printf("<tr><td>Time</td><td>%s</td></tr><tr><td>Temperature</td><td>%g</td>\n", tmstr, l->temp);
-    fwrite(html_tail, (sizeof html_tail)-1, 1, stdout);
+    strftime(tmstr, sizeof tmstr, "%d/%m/%Y&nbsp;%H:%M:%S", tp);
+    printf(html_tail, l->temp, tmstr);
 }
 
 int main(int argc, char **argv) {

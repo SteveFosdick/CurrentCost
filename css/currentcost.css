@@ -2,3 +2,24 @@ body {
     background: #e4edf7;
     font-family: sans-serif;
 }
+
+h1 {
+    font-size: 30pt;
+}
+
+table {
+    border-collapse:collapse;
+}
+
+table, th, td {
+    border:1px solid green;
+}
+
+th, td {
+    font-size: 16pt;
+    padding: 5px;
+}
+
+td {
+    background: #e4f7ed;
+}
