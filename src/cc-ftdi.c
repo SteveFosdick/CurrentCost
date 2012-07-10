@@ -12,11 +12,8 @@
 
 const char prog_name[] = "cc-ftdi";
 
-static const char dflt_dir[] = "/share/fozzy/Data/CurrentCost";
 static const char log_file[] = "cc-ftdi.log";
 static const char dev_null[] = "/dev/null";
-static const char xml_file[] = "cc-%Y-%m-%d.xml"; 
-static const char date_iso[] = "%Y%m%dT%H%M%SZ";
 
 #define DEFAULT_VENDOR_ID  0x0403
 #define DEFAULT_PRODUCT_ID 0x6001
@@ -230,7 +227,7 @@ int main(int argc, char **argv) {
     int vendor_id   = DEFAULT_VENDOR_ID;
     int product_id  = DEFAULT_PRODUCT_ID;
     int interface   = DEFAULT_INTERFACE;
-    const char *dir = dflt_dir;
+    const char *dir = default_dir;
     int c;
 
     while ((c = getopt(argc, argv, "d:i:p:v:")) != EOF) {

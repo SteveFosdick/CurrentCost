@@ -6,6 +6,10 @@
 #include <time.h>
 #include <sys/time.h>
 
+const char default_dir[] = "/share/fozzy/Data/CurrentCost";
+const char xml_file[]    = "cc-%Y-%m-%d.xml"; 
+const char date_iso[]    = "%Y%m%dT%H%M%SZ";
+
 static void log_common(const char *msg, va_list ap) {
     struct timeval tv;
     struct tm *tp;
