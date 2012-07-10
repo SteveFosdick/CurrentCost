@@ -127,7 +127,8 @@ static int main_loop(const char *port, int ifd, struct termios *tio) {
 		    break;
 		case ST_COPY:
 		    if (ofp != NULL)
-			putc(ch, ofp);
+			if ((ch >= 0x20 && ch <= 0x7e) || ch == '\n')
+			    putc(ch, ofp);
 		    if (ch == '\n')
 			state = ST_GROUND;
 		}

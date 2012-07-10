@@ -36,8 +36,16 @@ typedef enum {
     ST_GOT_M,
     ST_GOT_S,
     ST_GOT_G,
-    ST_COPY
+    ST_COPY,
+    ST_NON_ASCII
 } state_t;
+
+static void end_msg(FILE *ofp) {
+    if (ofp != NULL) {
+	putc('\n', ofp);
+	fflush(ofp);
+    }
+}
 
 static int main_loop(struct ftdi_context *ftdi) {
     state_t state = ST_GROUND;
@@ -45,7 +53,7 @@ static int main_loop(struct ftdi_context *ftdi) {
     unsigned char *ptr, *end, *copy = NULL;
     int status = 0;
     int old_day = 0;
-    int result, ch, flush;
+    int result, ch;
     FILE *nfp, *ofp = NULL;
     time_t secs;
     struct tm *tp;
@@ -55,7 +63,6 @@ static int main_loop(struct ftdi_context *ftdi) {
     while (!exit_requested) {
 	result = ftdi_read_data(ftdi, buf, sizeof buf);
 	if (result > 0) {
-	    flush = 0;
 	    ptr = buf;
 	    end = ptr + result;
 	    while (ptr < end) {
@@ -107,22 +114,33 @@ static int main_loop(struct ftdi_context *ftdi) {
 			state = ST_GROUND;
 		    break;
 		case ST_COPY:
-		    if (ch == '\n') {
+		    if (ch < 0x20 || ch > 0x7e) {
 			if (ofp != NULL)
-			    fwrite(copy, ptr-copy, 1, ofp);
-			state = ST_GROUND;
+			    fwrite(copy, ptr-copy-1, 1, ofp);
 			copy = NULL;
-			flush = 1;
+			if (ch == '\n') {
+			    end_msg(ofp);
+			    state = ST_GROUND;
+			}
+			else
+			    state = ST_NON_ASCII;
+		    }
+		    break;
+		case ST_NON_ASCII:
+		    if (ch == '\n') {
+			end_msg(ofp);
+			state = ST_GROUND;
+		    } else if (ch >= 0x20 || ch <= 0x7e) {
+			copy = ptr;
+			state = ST_COPY;
 		    }
 		}
 	    }
 	    if (copy) {
 		if (ofp != NULL)
 		    fwrite(copy, ptr-copy, 1, ofp);
-		copy = NULL;
+		copy = buf;
 	    }
-	    if (flush && ofp != NULL)
-		fflush(ofp);
 	} else if (result < 0) {
 	    report_ftdi_err(result, ftdi, "read error");
 	    status = 13;
