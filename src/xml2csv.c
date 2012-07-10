@@ -9,8 +9,10 @@
 const char prog_name[] = "xml2csv";
 
 static pf_status sample_cb(pf_context *ctx, pf_sample *smp) {
+    char tmstr[ISO_DATE_LEN];
     FILE *fp = ctx->user_data;
-    fprintf(fp, "%s,%g,%d,%g\n", smp->timestamp, smp->temp, smp->sensor, smp->watts);
+    strftime(tmstr, sizeof tmstr, date_iso, gmtime(&smp->timestamp));
+    fprintf(fp, "%s,%g,%d,%g\n", tmstr, smp->temp, smp->sensor, smp->watts);
     return PF_SUCCESS;
 }
 

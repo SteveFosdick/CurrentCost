@@ -8,17 +8,29 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-#define RE_TIM "([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)"
+static const char timestamp_pat[] =
+    "<host-tstamp>"
+    "([0-9]{4})-([0-9]{2})-([0-9]{2})" /* date part */
+    "T"
+    "([0-9]{2}):([0-9]{2}):([0-9]{2})" /* time part */
+    "Z</host-tstamp>";
+
+#define TIMESTAMP_NMATCH 7
+
 #define RE_NUM "([0-9\\.]+)"
 #define RE_INT "([0-9]+)"
 
-static const char pattern[] = "<host-tstamp>" RE_TIM ".*<tmpr>" RE_NUM ".*<sensor>" RE_INT ".*<watts>" RE_NUM;
-#define MATCH_SIZE 5
+static const char sample_pat[] =
+    "<tmpr>" RE_NUM
+    ".*<sensor>" RE_INT
+    ".*<watts>" RE_NUM;
 
-static void log_reg_err(pf_context *ctx, int err, const char *what) {
+#define SAMPLE_NMATCH 4
+
+static void log_reg_err(regex_t *preg, int err, const char *what) {
     char buf[1024];
 
-    regerror(err, &ctx->preg, buf, sizeof buf);
+    regerror(err, preg, buf, sizeof buf);
     log_msg("error %s regular expression - %s", what, buf);
 }
 
@@ -28,11 +40,15 @@ pf_context *pf_new(void) {
 
     if ((ctx = malloc(sizeof(pf_context)))) {
 	ctx->file_cb = pf_parse_forward;
+	ctx->filter_cb = pf_filter_all;
 	ctx->sample_cb = NULL;
-	if ((err = regcomp(&ctx->preg, pattern, REG_EXTENDED)) == 0)
-	    return ctx;
-	else
-	    log_reg_err(ctx, err, "compiling");
+	if ((err = regcomp(&ctx->timestamp_re, timestamp_pat, REG_EXTENDED)) == 0) {
+	    if ((err = regcomp(&ctx->sample_re, sample_pat, REG_EXTENDED)) == 0)
+		return ctx;
+	    log_reg_err(&ctx->sample_re, err, "compiling samples");
+	    regfree(&ctx->timestamp_re);
+	}
+	log_reg_err(&ctx->timestamp_re, err, "compiling timestamp");
 	free(ctx);
     } else
 	log_syserr("allocate parse context");
@@ -40,31 +56,63 @@ pf_context *pf_new(void) {
 }
 
 void pf_free(pf_context *ctx) {
-    regfree(&ctx->preg);
+    regfree(&ctx->sample_re);
+    regfree(&ctx->timestamp_re);
     free(ctx);
 }
 
-static pf_status exec_regex(pf_context *ctx, char *line) {
-    pf_status status = PF_SUCCESS;
-    regmatch_t matches[MATCH_SIZE], *match;
-    int err, size;
-    pf_sample smp;
+pf_status pf_filter_all(pf_context *ctx, time_t ts) {
+    return PF_SUCCESS;
+}
 
-    if ((err = regexec(&ctx->preg, line, MATCH_SIZE, matches, 0)) == 0) {
+static pf_status exec_sample_re(pf_context *ctx, char *tail, time_t ts_secs) {
+    pf_status status = PF_SUCCESS;
+    regmatch_t matches[SAMPLE_NMATCH], *match;
+    int err;
+    pf_sample smp;
+    
+    if ((err = regexec(&ctx->sample_re, tail, SAMPLE_NMATCH, matches, 0)) == 0) {
 	match = matches + 1;
-	size = match->rm_eo - match->rm_so;
-	if (size > sizeof smp.timestamp)
-	    size = sizeof smp.timestamp;
-	strncpy(smp.timestamp, line + match->rm_so, size);
+	smp.timestamp = ts_secs;
+	smp.temp = strtod(tail + match->rm_so, NULL);
 	match++;
-	smp.temp = strtod(line + match->rm_so, NULL);
+	smp.sensor = strtoul(tail + match->rm_so, NULL, 10);
 	match++;
-	smp.sensor = strtoul(line + match->rm_so, NULL, 10);
-	match++;
-	smp.watts = strtod(line + match->rm_so, NULL);
+	smp.watts = strtod(tail + match->rm_so, NULL);
 	status = ctx->sample_cb(ctx, &smp);
     } else if (err != REG_NOMATCH) {
-	log_reg_err(ctx, err, "executing");
+	log_reg_err(&ctx->sample_re, err, "executing sample");
+	status = PF_FAIL;
+    }
+    return status;
+}
+
+static pf_status exec_timestamp_re(pf_context *ctx, char *line) {
+    pf_status status = PF_SUCCESS;
+    regmatch_t matches[TIMESTAMP_NMATCH], *match;
+    int err;
+    struct tm ts_tm;
+    time_t ts_secs;
+
+    if ((err = regexec(&ctx->timestamp_re, line, TIMESTAMP_NMATCH, matches, 0)) == 0) {
+	memset(&ts_tm, 0, sizeof ts_tm);
+	match = matches + 1;
+	ts_tm.tm_year = atoi(line + match->rm_so) - 1900;
+	match++;
+	ts_tm.tm_mon = atoi(line + match->rm_so) - 1;
+	match++;
+	ts_tm.tm_mday = atoi(line + match->rm_so);
+	match++;
+	ts_tm.tm_hour = atoi(line + match->rm_so);
+	match++;
+	ts_tm.tm_min = atoi(line + match->rm_so);
+	match++;
+	ts_tm.tm_sec = atoi(line + match->rm_so);
+	ts_secs = mktime(&ts_tm);
+	if ((status = ctx->filter_cb(ctx, ts_secs)) == PF_SUCCESS)
+	    status = exec_sample_re(ctx, line + matches[0].rm_eo, ts_secs);
+    } else if (err != REG_NOMATCH) {
+	log_reg_err(&ctx->timestamp_re, err, "executing timestamp");
 	status = PF_FAIL;
     }
     return status;
@@ -80,7 +128,7 @@ pf_status pf_parse_line(pf_context *ctx, const char *line, const char *end) {
 	copy = alloca(size + 1);
 	memcpy(copy, line, size);
 	copy[size] = '\0';
-	status = exec_regex(ctx, copy);
+	status = exec_timestamp_re(ctx, copy);
     }
     return status;
 }
