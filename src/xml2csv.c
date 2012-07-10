@@ -6,7 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 
-const char prog_name[] = "parsetest";
+const char prog_name[] = "xml2csv";
 
 static pf_status sample_cb(pf_context *ctx, pf_sample *smp) {
     FILE *fp = ctx->user_data;
