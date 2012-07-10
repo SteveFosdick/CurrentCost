@@ -15,7 +15,7 @@ typedef enum {
 } pf_dir;
 
 typedef struct _pf_sample {
-    char   timestamp[16];
+    char   timestamp[ISO_DATE_LEN];
     double temp;
     int    sensor;
     double watts;

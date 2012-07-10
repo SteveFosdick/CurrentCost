@@ -1,5 +1,5 @@
-#include "parsefile.h"
 #include "cc-common.h"
+#include "parsefile.h"
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -8,7 +8,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-#define RE_TIM "([0-9T]+)"
+#define RE_TIM "([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)"
 #define RE_NUM "([0-9\\.]+)"
 #define RE_INT "([0-9]+)"
 

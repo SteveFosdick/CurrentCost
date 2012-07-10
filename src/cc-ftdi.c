@@ -57,7 +57,7 @@ static int main_loop(struct ftdi_context *ftdi) {
     FILE *nfp, *ofp = NULL;
     time_t secs;
     struct tm *tp;
-    char file[30], stamp[16];
+    char file[30], stamp[ISO_DATE_LEN];
 
     log_msg("initialisation complete, begin main loop");
     while (!exit_requested) {

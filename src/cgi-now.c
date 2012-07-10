@@ -13,7 +13,7 @@ const char prog_name[] = "cc-now";
 #define MAX_SENSOR 10
 
 struct latest {
-    char   timestamp_iso[16];
+    char   timestamp_iso[ISO_DATE_LEN];
     time_t timestamp_secs;
     double temp;
     double sensors[MAX_SENSOR];
@@ -22,7 +22,7 @@ struct latest {
 static time_t parse_ts(const char *ts) {
     int year, month, day, hour, min, sec;
     struct tm ts_tm;
-    if (sscanf(ts, "%4d%2d%2dT%2d%2d%2d", &year, &month, &day, &hour, &min, &sec) == 6) {
+    if (sscanf(ts, "%4d-%2d-%2dT%2d:%2d:%2d", &year, &month, &day, &hour, &min, &sec) == 6) {
 	memset(&ts_tm, 0, sizeof ts_tm);
 	ts_tm.tm_year = year - 1900;
 	ts_tm.tm_mon = month - 1;
@@ -32,6 +32,7 @@ static time_t parse_ts(const char *ts) {
 	ts_tm.tm_sec = sec;
 	return mktime(&ts_tm);
     } else {
+	log_msg("unparsable time stamp '%s'", ts);
 	return (time_t)-1;
     }
 }

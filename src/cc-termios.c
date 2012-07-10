@@ -1,3 +1,5 @@
+#include "cc-common.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -62,7 +64,7 @@ static int main_loop(const char *port, int ifd, struct termios *tio) {
     FILE *nfp, *ofp = NULL;
     time_t secs;
     struct tm *tp;
-    char file[30], buf[BUF_SIZE], stamp[16];
+    char file[30], buf[BUF_SIZE], stamp[ISO_DATE_LEN];
     ssize_t nbytes;
     char *ptr, *end;
     int ch;

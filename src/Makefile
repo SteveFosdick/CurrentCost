@@ -2,7 +2,7 @@ CC	= gcc
 CFLAGS	= -Wall -O3
 LDFLAGS = -Wall -O3
 
-all: cc-termios cc-ftdi xml2csv cc-now.cgi
+all: cc-termios cc-ftdi xml2csv cc-now.cgi ascii-clean
 
 cc-termios: cc-termios.o
 
@@ -20,3 +20,6 @@ CGI_NOW_MODULES = cgi-now.o parsefile.o cc-common.o
 
 cc-now.cgi: $(CGI_NOW_MODULES)
 	$(CC) $(LDFLAGS) -o cc-now.cgi $(CGI_NOW_MODULES)
+
+cc-common.o cc-termios.o cc-ftdi.o parsefile.o: cc-common.h
+parsefile.o cgi-now.o xml2csv.o: parsefile.h
