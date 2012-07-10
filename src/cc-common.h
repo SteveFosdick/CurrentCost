@@ -3,6 +3,7 @@
 
 #include <stdarg.h>
 
+#define MAX_SENSOR   10
 #define ISO_DATE_LEN 21
 
 extern const char prog_name[];

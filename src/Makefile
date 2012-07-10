@@ -2,7 +2,7 @@ CC	= gcc
 CFLAGS	= -Wall -O3
 LDFLAGS = -Wall -O3
 
-all: cc-termios cc-ftdi xml2csv cc-now.cgi ascii-clean
+all: cc-termios cc-ftdi xml2csv ascii-clean cc-now.cgi cc-history.cgi
 
 cc-termios: cc-termios.o
 
@@ -16,10 +16,16 @@ XML2CSV_MODULES = xml2csv.o parsefile.o cc-common.o
 xml2csv: $(XML2CSV_MODULES)
 	$(CC) $(LDFLAGS) -o xml2csv $(XML2CSV_MODULES)
 
-CGI_NOW_MODULES = cgi-now.o parsefile.o cc-common.o
+CGI_NOW_MODULES = cgi-now.o cgi-common.o parsefile.o cc-common.o
 
 cc-now.cgi: $(CGI_NOW_MODULES)
 	$(CC) $(LDFLAGS) -o cc-now.cgi $(CGI_NOW_MODULES)
 
-cc-common.o cc-termios.o cc-ftdi.o parsefile.o: cc-common.h
+CGI_HIST_MODULES = cgi-history.o cgi-common.o history.o parsefile.o cc-common.o
+
+cc-history.cgi: $(CGI_HIST_MODULES)
+	$(CC) $(LDFLAGS) -o cc-history.cgi $(CGI_HIST_MODULES)
+
+cc-common.o cc-termios.o cc-ftdi.o parsefile.o history.o: cc-common.h
 parsefile.o cgi-now.o xml2csv.o: parsefile.h
+history.o: history.h

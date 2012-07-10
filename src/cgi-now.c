@@ -3,14 +3,13 @@
 
 #include "cc-common.h"
 #include "parsefile.h"
+#include "cgi-common.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
 const char prog_name[] = "cc-now";
-
-#define MAX_SENSOR 10
 
 struct latest {
     time_t timestamp;
@@ -38,31 +37,12 @@ static pf_status sample_cb(pf_context *ctx, pf_sample *smp) {
     return PF_SUCCESS;
 }
 
-static const char *sensor_names[] = {
-    "Whole House",
-    "Computers",
-    "TV & Audio",
-    "Utility",
-    "Sensor 4",
-    "Sensor 5",
-    "Sensor 6",
-    "Sensor 7",
-    "Sensor 8",
-    "Sensor 9",
-    "Sensor 10"
-};
-
-static const char html_top[] =
+static const char http_hdr[] =
     "Content-Type: text/html\n"
-    "Refresh: 3\n"
-    "\n"
-    "<html>\n"
-    "  <head>\n"
+    "Refresh: 3\n";
+
+static const char html_middle[] =
     "    <title>Energy Use Now</title>\n"
-    "    <meta name=\"HandheldFriendly\" content=\"true\"/>\n"
-    "    <meta name=\"viewport\" content=\"target-densitydpi=device-dpi\"/>\n"
-    "    <meta name=\"viewport\" content=\"initial-scale=2\"/>\n"
-    "    <link rel=\"stylesheet\" type=\"text/css\" href=\"/currentcost/currentcost.css\"/>\n"
     "  </head>\n"
     "  <body>\n"
     "    <h1>Energy Use Now</h1>\n"
@@ -75,16 +55,14 @@ static const char html_top[] =
     "      </thead>\n"
     "      <tbody>\n";
 
-static const char html_tail[] =
+static const char html_bottom[] =
     "        <tr>\n"
     "          <td>Temperature</td>\n"
     "          <td>%g</td>\n"
     "        </tr>\n"
     "      </tbody>\n"
     "    </table>\n"
-    "    <p>%s</p>\n"
-    "  </body>\n"
-    "</html>\n";
+    "    <p>%s</p>\n";
 
 static void cgi_output(struct latest *l) {
     int i;
@@ -92,7 +70,9 @@ static void cgi_output(struct latest *l) {
     struct tm *tp;
     char tmstr[30];
 
-    fwrite(html_top, (sizeof html_top)-1, 1, stdout);
+    fwrite(http_hdr, sizeof(http_hdr)-1, 1, stdout);
+    send_html_top(stdout);
+    fwrite(html_middle, (sizeof html_middle)-1, 1, stdout);
     for (i = 0; i < MAX_SENSOR; i++) {
 	value = l->sensors[i];
 	if (value >= 0) {
@@ -105,11 +85,12 @@ static void cgi_output(struct latest *l) {
     }
     tp = localtime(&l->timestamp);
     strftime(tmstr, sizeof tmstr, "%d/%m/%Y&nbsp;%H:%M:%S", tp);
-    printf(html_tail, l->temp, tmstr);
+    printf(html_bottom, l->temp, tmstr);
+    send_html_tail(stdout);
 }
 
-int main(int argc, char **argv) {
-    int status = 1;
+int cgi_main(int argc, char **argv) {
+    int status = 2;
     time_t secs;
     struct tm *tp;
     char name[30];
@@ -117,28 +98,25 @@ int main(int argc, char **argv) {
     struct latest l;
     int i;
 
-    if (chdir(default_dir) == 0) {
-	time(&secs);
-	secs -= 6; /* may need a sample six seconds ago */
-	tp = gmtime(&secs);
-	strftime(name, sizeof(name), xml_file, tp);
-	if ((pf = pf_new())) {
-	    pf->file_cb = pf_parse_backward;
-	    pf->filter_cb = filter_cb;
-	    pf->sample_cb = sample_cb;
-	    pf->user_data = &l;
-	    l.timestamp = 0;
-	    l.temp = -1.0;
-	    for (i = 0; i < MAX_SENSOR; i++)
-		l.sensors[i] = -1.0;
-	    if (pf_parse_file(pf, name) != PF_FAIL) {
-		cgi_output(&l);
-		status = 0;
-	    }
-	    pf_free(pf);
+    time(&secs);
+    secs -= 6; /* may need a sample six seconds ago */
+    tp = gmtime(&secs);
+    strftime(name, sizeof(name), xml_file, tp);
+    if ((pf = pf_new())) {
+	pf->file_cb = pf_parse_backward;
+	pf->filter_cb = filter_cb;
+	pf->sample_cb = sample_cb;
+	pf->user_data = &l;
+	l.timestamp = 0;
+	l.temp = -1.0;
+	for (i = 0; i < MAX_SENSOR; i++)
+	    l.sensors[i] = -1.0;
+	if (pf_parse_file(pf, name) != PF_FAIL) {
+	    cgi_output(&l);
+	    status = 0;
 	}
-    } else
-	log_syserr("unable to chdir to '%s'", default_dir);
+	pf_free(pf);
+    }
     return status;
 }
 	
