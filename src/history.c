@@ -16,6 +16,8 @@ static void init_data(hist_context *ctx) {
 	point->temp_total = 0;
 	point->temp_count = 0;
     }
+    for (i = 0; i < MAX_SENSOR; i++)
+	ctx->flags[i] = 0;
 }
 
 static pf_status sample_cb(pf_context *pf, pf_sample *smp) {
@@ -23,23 +25,26 @@ static pf_status sample_cb(pf_context *pf, pf_sample *smp) {
     hist_point *point;
     int sensor;
 
-    if (smp->timestamp >= ctx->start_ts && smp->timestamp <= ctx->end_ts) {
+    if (smp->timestamp >= ctx->start_ts && smp->timestamp < ctx->end_ts) {
 	point = ctx->data + ((smp->timestamp - ctx->start_ts) / ctx->step);
-	point->temp_total += smp->temp;
-	point->temp_count++;
-	sensor = smp->sensor;
-	if (sensor >= 0 && sensor < MAX_SENSOR) {
-	    point->totals[sensor] += smp->watts;
-	    point->counts[sensor]++;
-	    ctx->flags[sensor] = 1;
-	}
+	if (point < ctx->end) {
+	    point->temp_total += smp->temp;
+	    point->temp_count++;
+	    sensor = smp->sensor;
+	    if (sensor >= 0 && sensor < MAX_SENSOR) {
+		point->totals[sensor] += smp->watts;
+		point->counts[sensor]++;
+		ctx->flags[sensor] = 1;
+	    }
+	} else
+	    log_msg("point with timestamp %lu is too big", smp->timestamp);
     }
     return PF_SUCCESS;
 }
 
 static pf_status filter_cb_forw(pf_context *pf, time_t ts) {
     hist_context *ctx = pf->user_data;
-    if (ts > ctx->end_ts)
+    if (ts >= ctx->end_ts)
 	return PF_STOP;
     return PF_SUCCESS;
 }
@@ -88,7 +93,7 @@ static pf_status fetch_data(hist_context *ctx) {
 	    pf->file_cb = pf_parse_forward;
 	    pf->filter_cb = filter_cb_forw;
 	    status = PF_SUCCESS;
-	    for (ts = ctx->start_ts + SECS_IN_DAY; ts <= ctx->end_ts; ts += SECS_IN_DAY) {
+	    for (ts = ctx->start_ts + SECS_IN_DAY; ts < ctx->end_ts; ts += SECS_IN_DAY) {
 		gmtime_r(&ts, &tm_ts);
 		strftime(file, sizeof file, xml_file, &tm_ts);
 		log_msg("read file '%s'", file);
@@ -111,7 +116,7 @@ hist_context *hist_get(time_t from, time_t to, int step) {
 	ctx->start_ts = from;
 	ctx->end_ts = to;
 	ctx->step = step;
-	points = (to - from) / step;
+	points = (to - from) / step + 1;
 	if ((ctx->data = malloc(points * sizeof(hist_point)))) {
 	    ctx->end = ctx->data + points;
 	    init_data(ctx);
@@ -149,7 +154,7 @@ void hist_js_sens_out(hist_context *ctx, FILE *ofp, int sensor) {
     double value;
     int ch;
 
-    if (sensor >= 0 && sensor <= MAX_SENSOR) {
+    if (sensor >= 0 && sensor < MAX_SENSOR) {
 	if (ctx->flags[sensor]) {
 	    ch = '[';
 	    value = 0.0;
