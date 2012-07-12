@@ -2,7 +2,7 @@ CC	= gcc
 CFLAGS	= -Wall -O3
 LDFLAGS = -Wall -O3
 
-all: cc-termios cc-ftdi xml2csv ascii-clean cc-now.cgi cc-history.cgi swtest
+all: cc-termios cc-ftdi xml2csv ascii-clean cc-now.cgi cc-history.cgi cgi-test
 
 cc-termios: cc-termios.o
 
@@ -15,6 +15,11 @@ XML2CSV_MODULES = xml2csv.o parsefile.o cc-common.o
 
 xml2csv: $(XML2CSV_MODULES)
 	$(CC) $(LDFLAGS) -o xml2csv $(XML2CSV_MODULES)
+
+CGI_TEST_MODULES = cgi-test.o cgi-common.o cc-common.o
+
+cgi-test: $(CGI_TEST_MODULES)
+	$(CC) $(LDFLAGS) -o cgi-test $(CGI_TEST_MODULES)
 
 CGI_NOW_MODULES = cgi-now.o cgi-common.o parsefile.o cc-common.o
 
