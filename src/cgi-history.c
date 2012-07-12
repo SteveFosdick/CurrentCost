@@ -78,14 +78,14 @@ static int cgi_history(time_t start, time_t end) {
     step = delta / 720;
     if (step == 0)
 	step = 1;
-    time(&end);
     if (chdir(default_dir) == 0) {
+	strftime(tm_from, sizeof(tm_from), time_fmt, localtime(&start));
+	strftime(tm_to, sizeof(tm_to), time_fmt, localtime(&end));
+	log_msg("from %s to %s", tm_from, tm_to);
 	if ((hc = hist_get(start, end, step))) {
 	    status = 0;
 	    fwrite(http_hdr, sizeof(http_hdr)-1, 1, stdout);
 	    send_html_top(stdout);
-	    strftime(tm_from, sizeof(tm_from), time_fmt, localtime(&start));
-	    strftime(tm_to, sizeof(tm_to), time_fmt, localtime(&end));
 	    printf(html_middle, tm_from, tm_to, tm_from, tm_to);
 	    for (i = 0; i < MAX_SENSOR; i++) {
 		if (hc->flags[i]) {
