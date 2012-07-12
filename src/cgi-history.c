@@ -22,7 +22,7 @@ static const char html_middle[] =
     "var g = new Bluff.Line('graph', '800x600');\n"
     "g.title = 'Historic Engery Use - %s';\n"
     "g.tooltips = true;\n"
-    "g.theme_37signals();\n";
+    "g.theme_keynote();\n";
 
 static const char html_bottom[] =
     "};\n"
