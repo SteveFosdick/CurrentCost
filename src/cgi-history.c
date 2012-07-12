@@ -22,9 +22,9 @@ static const char html_middle[] =
     "    <script src=\"/currentcost/bluff-src.js\"></script>\n"
     "  </head>\n"
     "  <body>\n"
-    "    <canvas id=\"graph\" width=\"800\" height=\"600\"></canvas>\n"
+    "    <canvas id=\"graph\" width=\"1280\" height=\"720\"></canvas>\n"
     "    <script type=\"text/javascript\">\n"
-    "var g = new Bluff.Line('graph', '800x600');\n"
+    "var g = new Bluff.Line('graph', '1280x720');\n"
     "g.title = '%s to %s';\n"
     "g.tooltips = true;\n"
     "g.theme_keynote();\n";
@@ -79,26 +79,31 @@ static int cgi_history(time_t start, time_t end) {
     if (step == 0)
 	step = 1;
     time(&end);
-    if ((hc = hist_get(start, end, step))) {
-	status = 0;
-	fwrite(http_hdr, sizeof(http_hdr)-1, 1, stdout);
-	send_html_top(stdout);
-	strftime(tm_from, sizeof(tm_from), time_fmt, localtime(&start));
-	strftime(tm_to, sizeof(tm_to), time_fmt, localtime(&end));
-	printf(html_middle, tm_from, tm_to, tm_from, tm_to);
-	for (i = 0; i < MAX_SENSOR; i++) {
-	    if (hc->flags[i]) {
-		printf("g.data(\"%s\", ", sensor_names[i]);
-		hist_js_sens_out(hc, stdout, i);
-		fputs(");\n", stdout);
+    if (chdir(default_dir) == 0) {
+	if ((hc = hist_get(start, end, step))) {
+	    status = 0;
+	    fwrite(http_hdr, sizeof(http_hdr)-1, 1, stdout);
+	    send_html_top(stdout);
+	    strftime(tm_from, sizeof(tm_from), time_fmt, localtime(&start));
+	    strftime(tm_to, sizeof(tm_to), time_fmt, localtime(&end));
+	    printf(html_middle, tm_from, tm_to, tm_from, tm_to);
+	    for (i = 0; i < MAX_SENSOR; i++) {
+		if (hc->flags[i]) {
+		    printf("g.data(\"%s\", ", sensor_names[i]);
+		    hist_js_sens_out(hc, stdout, i);
+		    fputs(");\n", stdout);
+		}
 	    }
-	}
-	hist_free(hc);
-	send_labels(start, end, delta, step);
-	fwrite(html_bottom, sizeof(html_bottom)-1, 1, stdout);
-	send_html_tail(stdout);
-    } else
+	    hist_free(hc);
+	    send_labels(start, end, delta, step);
+	    fwrite(html_bottom, sizeof(html_bottom)-1, 1, stdout);
+	    send_html_tail(stdout);
+	} else
+	    status = 3;
+    } else {
+	log_syserr("unable to chdir to '%s'", default_dir);
 	status = 2;
+    }
     return status;
 }
 
@@ -111,7 +116,7 @@ static time_t parse_limit(const char *value, time_t now) {
     return n;
 }
 
-int cgi_main(int argc, char **argv) {
+int main(int argc, char **argv) {
     int status = 2;
     cgi_query_t *q;
     const char *start_str, *end_str;
@@ -121,11 +126,11 @@ int cgi_main(int argc, char **argv) {
 	status = 0;
 	if ((start_str = cgi_get_param(q, "start")) == NULL) {
 	    log_msg("missing 'start' parameter");
-	    status = 2;
+	    status = 1;
 	}
 	if ((end_str = cgi_get_param(q, "end")) == NULL) {
 	    log_msg("missing 'end' parameter");
-	    status = 2;
+	    status = 1;
 	}
 	if (status == 0) {
 	    time(&now);
@@ -133,7 +138,7 @@ int cgi_main(int argc, char **argv) {
 	    end_secs = parse_limit(end_str, now);
 	    if (end_secs <= start_secs) {
 		log_msg("end must be greater than start");
-		status = 2;
+		status = 1;
 	    } else
 		status = cgi_history(start_secs, end_secs);
 	}

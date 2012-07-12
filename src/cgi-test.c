@@ -2,7 +2,7 @@
 
 const char prog_name[] = "cgi-test";
 
-int cgi_main(int argc, char **argv) {
+int main(int argc, char **argv) {
     cgi_query_t *q;
 
     if ((q = cgi_get_query()))

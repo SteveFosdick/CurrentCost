@@ -18,7 +18,6 @@ extern const char *sensor_names[];
 extern void send_html_top(FILE *ofp);
 extern void send_html_tail(FILE *ofp);
 
-extern int cgi_main(int argc, char **argv);
 char *cgi_urldec(char *dest, const char *src);
 extern cgi_query_t *cgi_get_query(void);
 extern char *cgi_get_param(cgi_query_t *query, const char *name);

@@ -89,7 +89,7 @@ static void cgi_output(struct latest *l) {
     send_html_tail(stdout);
 }
 
-int cgi_main(int argc, char **argv) {
+int main(int argc, char **argv) {
     int status = 2;
     time_t secs;
     struct tm *tp;
@@ -98,24 +98,29 @@ int cgi_main(int argc, char **argv) {
     struct latest l;
     int i;
 
-    time(&secs);
-    secs -= 6; /* may need a sample six seconds ago */
-    tp = gmtime(&secs);
-    strftime(name, sizeof(name), xml_file, tp);
-    if ((pf = pf_new())) {
-	pf->file_cb = pf_parse_backward;
-	pf->filter_cb = filter_cb;
-	pf->sample_cb = sample_cb;
-	pf->user_data = &l;
-	l.timestamp = 0;
-	l.temp = -1.0;
-	for (i = 0; i < MAX_SENSOR; i++)
-	    l.sensors[i] = -1.0;
-	if (pf_parse_file(pf, name) != PF_FAIL) {
-	    cgi_output(&l);
-	    status = 0;
+    if (chdir(default_dir) == 0) {
+	time(&secs);
+	secs -= 6; /* may need a sample six seconds ago */
+	tp = gmtime(&secs);
+	strftime(name, sizeof(name), xml_file, tp);
+	if ((pf = pf_new())) {
+	    pf->file_cb = pf_parse_backward;
+	    pf->filter_cb = filter_cb;
+	    pf->sample_cb = sample_cb;
+	    pf->user_data = &l;
+	    l.timestamp = 0;
+	    l.temp = -1.0;
+	    for (i = 0; i < MAX_SENSOR; i++)
+		l.sensors[i] = -1.0;
+	    if (pf_parse_file(pf, name) != PF_FAIL) {
+		cgi_output(&l);
+		status = 0;
+	    }
+	    pf_free(pf);
 	}
-	pf_free(pf);
+    } else {
+	log_syserr("unable to chdir to '%s'", default_dir);
+	status = 2;
     }
     return status;
 }

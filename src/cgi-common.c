@@ -41,13 +41,6 @@ void send_html_tail(FILE *ofp) {
     fwrite(html_tail, sizeof(html_tail)-1, 1, ofp);
 }
 
-int main(int argc, char **argv) {
-    if (chdir(default_dir) == 0)
-	return cgi_main(argc, argv);
-    log_syserr("unable to chdir to '%s'", default_dir);
-    return 1;
-}
-
 static char *method_get(void) {
     char *data;
     
