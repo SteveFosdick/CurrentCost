@@ -9,13 +9,9 @@
 #include <sys/stat.h>
 
 static const char timestamp_pat[] =
-    "<host-tstamp>"
-    "([0-9]{4})-([0-9]{2})-([0-9]{2})" /* date part */
-    "T"
-    "([0-9]{2}):([0-9]{2}):([0-9]{2})" /* time part */
-    "Z</host-tstamp>";
+    "<host-tstamp>([0-9]+)</host-tstamp>";
 
-#define TIMESTAMP_NMATCH 7
+#define TIMESTAMP_NMATCH 2
 
 #define RE_NUM "([0-9\\.]+)"
 #define RE_INT "([0-9]+)"
@@ -89,26 +85,12 @@ static pf_status exec_sample_re(pf_context *ctx, char *tail, time_t ts_secs) {
 
 static pf_status exec_timestamp_re(pf_context *ctx, char *line) {
     pf_status status = PF_SUCCESS;
-    regmatch_t matches[TIMESTAMP_NMATCH], *match;
+    regmatch_t matches[TIMESTAMP_NMATCH];
     int err;
-    struct tm ts_tm;
     time_t ts_secs;
 
     if ((err = regexec(&ctx->timestamp_re, line, TIMESTAMP_NMATCH, matches, 0)) == 0) {
-	memset(&ts_tm, 0, sizeof ts_tm);
-	match = matches + 1;
-	ts_tm.tm_year = atoi(line + match->rm_so) - 1900;
-	match++;
-	ts_tm.tm_mon = atoi(line + match->rm_so) - 1;
-	match++;
-	ts_tm.tm_mday = atoi(line + match->rm_so);
-	match++;
-	ts_tm.tm_hour = atoi(line + match->rm_so);
-	match++;
-	ts_tm.tm_min = atoi(line + match->rm_so);
-	match++;
-	ts_tm.tm_sec = atoi(line + match->rm_so);
-	ts_secs = mktime(&ts_tm);
+	ts_secs = strtoul(line + matches[1].rm_so, NULL, 10);
 	if ((status = ctx->filter_cb(ctx, ts_secs)) == PF_SUCCESS)
 	    status = exec_sample_re(ctx, line + matches[0].rm_eo, ts_secs);
     } else if (err != REG_NOMATCH) {

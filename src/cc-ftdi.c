@@ -52,12 +52,11 @@ static int main_loop(struct ftdi_context *ftdi) {
     unsigned char buf[4096];
     unsigned char *ptr, *end, *copy = NULL;
     int status = 0;
-    int old_day = 0;
     int result, ch;
     FILE *nfp, *ofp = NULL;
-    time_t secs;
+    time_t now_secs, switch_secs = 0;
     struct tm *tp;
-    char file[30], stamp[ISO_DATE_LEN];
+    char file[30];
 
     log_msg("initialisation complete, begin main loop");
     while (!exit_requested) {
@@ -92,22 +91,20 @@ static int main_loop(struct ftdi_context *ftdi) {
 		    break;
 		case ST_GOT_G:
 		    if (ch == '>') {
-			time(&secs);
-			tp = gmtime(&secs);
-			if (tp->tm_mday != old_day) {
+			time(&now_secs);
+			if (now_secs >= switch_secs) {
+			    tp = gmtime(&now_secs);
 			    strftime(file, sizeof file, xml_file, tp);
 			    if ((nfp = fopen(file, "a"))) {
 				if (ofp != NULL)
 				    fclose(ofp);
 				ofp = nfp;
-				old_day = tp->tm_mday;
+				switch_secs = now_secs + 86400 - (now_secs % 86400);
 			    } else
 				log_msg("unable to open file '%s' for append - %s", file, strerror(errno));
 			}
-			if (ofp != NULL) {
-			    strftime(stamp, sizeof stamp, date_iso, tp);
-			    fprintf(ofp, "<msg><host-tstamp>%s</host-tstamp>", stamp);
-			}
+			if (ofp != NULL)
+			    fprintf(ofp, "<msg><host-tstamp>%lu</host-tstamp>", (unsigned long)now_secs);
 			state = ST_COPY;
 			copy = ptr;
 		    } else

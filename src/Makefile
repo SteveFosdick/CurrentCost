@@ -2,7 +2,7 @@ CC	= gcc
 CFLAGS	= -Wall -O3
 LDFLAGS = -Wall -O3
 
-all: cc-termios cc-ftdi xml2csv ascii-clean cc-now.cgi cc-history.cgi
+all: cc-termios cc-ftdi xml2csv ascii-clean cc-now.cgi cc-history.cgi swtest
 
 cc-termios: cc-termios.o
 
