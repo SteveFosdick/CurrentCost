@@ -1,6 +1,6 @@
 CC	= gcc
-CFLAGS	= -Wall -O3
-LDFLAGS = -Wall -O3
+CFLAGS	= -Wall -O3 -g
+LDFLAGS = -Wall -O3 -g
 
 all: cc-termios cc-ftdi xml2csv ascii-clean cc-now.cgi cc-history.cgi cgi-test
 
