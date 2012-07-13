@@ -15,6 +15,7 @@ typedef struct {
 } cgi_query_t;
 
 extern const char *sensor_names[];
+extern const char base_url[];
 extern void send_html_top(FILE *ofp);
 extern void send_html_tail(FILE *ofp);
 

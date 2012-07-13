@@ -22,7 +22,9 @@ static const char html_middle[] =
     "    <script src=\"/currentcost/js-class.js\"></script>\n"
     "    <script src=\"/currentcost/bluff-src.js\"></script>\n"
     "  </head>\n"
-    "  <body>\n"
+    "  <body>\n";
+
+static const char graph_head[] =
     "    <canvas id=\"graph\" width=\"1280\" height=\"720\"></canvas>\n"
     "    <script type=\"text/javascript\">\n"
     "var g = new Bluff.Line('graph', '1280x720');\n"
@@ -30,7 +32,7 @@ static const char html_middle[] =
     "g.tooltips = true;\n"
     "g.theme_keynote();\n";
 
-static const char html_bottom[] =
+static const char graph_tail[] =
     "};\n"
     "g.draw();\n"
     "    </script>\n";
@@ -68,6 +70,24 @@ static void send_labels(time_t start, time_t end, time_t delta, time_t step) {
     }
 }
 
+static void send_hist_link(time_t start, time_t end, const char *desc) {
+    printf("<a href=\"%scc-history.cgi?start=%lu&end=%lu\">%s</a>&nbsp;\n",
+	   base_url, start, end, desc);
+}
+										
+static void send_navlinks(time_t start, time_t end, time_t delta) {
+    time_t half = delta / 2;
+
+    fputs("    <p>\n", stdout);
+    send_hist_link(start - delta, end - delta, "<<");
+    send_hist_link(start - half, end - half, "<");
+    printf("<a href=\"%scc-now.cgi\">Current Consumption</a>\n", base_url);
+    printf("<a href=\"%scc-picker.cgi\">Browse History</a>\n", base_url);
+    send_hist_link(start + half, end + half, ">");
+    send_hist_link(start + delta, end + delta, ">>");
+    fputs("    </p>\n", stdout);
+}
+    
 static int cgi_history(time_t start, time_t end) {
     int status, i;
     time_t delta, step;
@@ -86,7 +106,9 @@ static int cgi_history(time_t start, time_t end) {
 	    status = 0;
 	    fwrite(http_hdr, sizeof(http_hdr)-1, 1, stdout);
 	    send_html_top(stdout);
-	    printf(html_middle, tm_from, tm_to, tm_from, tm_to);
+	    printf(html_middle, tm_from, tm_to);
+	    send_navlinks(start, end, delta);
+	    printf(graph_head, tm_from, tm_to);
 	    for (i = 0; i < MAX_SENSOR; i++) {
 		if (hc->flags[i]) {
 		    printf("g.data(\"%s\", ", sensor_names[i]);
@@ -96,7 +118,8 @@ static int cgi_history(time_t start, time_t end) {
 	    }
 	    hist_free(hc);
 	    send_labels(start, end, delta, step);
-	    fwrite(html_bottom, sizeof(html_bottom)-1, 1, stdout);
+	    fwrite(graph_tail, sizeof(graph_tail)-1, 1, stdout);
+	    send_navlinks(start, end, delta);
 	    send_html_tail(stdout);
 	} else
 	    status = 3;

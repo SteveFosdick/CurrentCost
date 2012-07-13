@@ -46,6 +46,7 @@ static const char html_middle[] =
     "    <title>Energy Use Now</title>\n"
     "  </head>\n"
     "  <body>\n"
+    "    <p><a href=\"%scc-picker.cgi\">Browse Consumption History</a></p>\n"
     "    <h1>Energy Use Now</h1>\n"
     "    <table>\n"
     "      <thead>\n"
@@ -63,7 +64,8 @@ static const char html_bottom[] =
     "        </tr>\n"
     "      </tbody>\n"
     "    </table>\n"
-    "    <p>%s</p>\n";
+    "    <p>%s</p>\n"
+    "    <p><a href=\"%scc-picker.cgi\">Browse Consumption History</a></p>\n";
 
 static void cgi_output(struct latest *l) {
     int i;
@@ -73,7 +75,7 @@ static void cgi_output(struct latest *l) {
 
     fwrite(http_hdr, sizeof(http_hdr)-1, 1, stdout);
     send_html_top(stdout);
-    fwrite(html_middle, (sizeof html_middle)-1, 1, stdout);
+    printf(html_middle, base_url);
     for (i = 0; i < MAX_SENSOR; i++) {
 	value = l->sensors[i];
 	if (value >= 0) {
@@ -86,7 +88,7 @@ static void cgi_output(struct latest *l) {
     }
     tp = localtime(&l->timestamp);
     strftime(tmstr, sizeof tmstr, "%d/%m/%Y&nbsp;%H:%M:%S", tp);
-    printf(html_bottom, l->temp, tmstr);
+    printf(html_bottom, l->temp, tmstr, base_url);
     send_html_tail(stdout);
 }
 

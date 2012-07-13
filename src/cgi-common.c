@@ -20,6 +20,8 @@ const char *sensor_names[] = {
     "Sensor 10"
 };
 
+const char base_url[] = "http://fosdick.dyndns.org/cgi-bin/";
+
 static const char html_top[] =
     "\n"
     "<html>\n"

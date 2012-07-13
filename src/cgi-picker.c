@@ -14,6 +14,7 @@ static const char html_middle[] =
     "    <title>Current Cost Date Picker</title>\n"
     "  </head>\n"
     "  <body>\n"
+    "    <p><a href=\"%scc-now.cgi\">Current Consumption</a></p>\n"
     "    <h1>Browse History</h1>\n"
     "    <table>\n";
 
@@ -44,7 +45,10 @@ static const char new_para[] =
     "    </p>\n"
     "    <p>\n";
 
-static const char base_url[] = "http://fosdick.dyndns.org/cgi-bin/";
+static const char tab_end[] =
+    "      </tbody>\n"
+    "    </table>\n"
+    "    <p><a href=\"%scc-now.cgi\">Current Consumption</a></p>\n";
 
 static void send_calendar(time_t start_secs, struct tm *tp) {
     time_t secs;
@@ -176,11 +180,11 @@ int main(int argc, char **argv) {
 
 	fwrite(http_hdr, sizeof(http_hdr)-1, 1, stdout);
 	send_html_top(stdout);
-	fwrite(html_middle, sizeof(html_middle)-1, 1, stdout);
+	printf(html_middle, base_url);
 	send_calendar(midnight, &start_tm);
 	send_middle_links(midnight, &start_tm);
 	send_hour_links(midnight);
-	fwrite(tab_tail, sizeof(tab_tail)-1, 1, stdout);
+	printf(tab_end, base_url);
 	send_html_tail(stdout);
     }
     return status;
