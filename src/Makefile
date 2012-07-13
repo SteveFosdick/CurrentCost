@@ -2,7 +2,7 @@ CC	= gcc
 CFLAGS	= -Wall -O3 -g
 LDFLAGS = -Wall -O3 -g
 
-all: cc-termios cc-ftdi xml2csv ascii-clean cc-now.cgi cc-history.cgi cgi-test
+all: cc-termios cc-ftdi xml2csv ascii-clean cc-now.cgi cc-history.cgi cc-picker.cgi cgi-test
 
 cc-termios: cc-termios.o
 
@@ -30,6 +30,11 @@ CGI_HIST_MODULES = cgi-history.o cgi-common.o history.o parsefile.o cc-common.o
 
 cc-history.cgi: $(CGI_HIST_MODULES)
 	$(CC) $(LDFLAGS) -o cc-history.cgi $(CGI_HIST_MODULES)
+
+CGI_PICKER_MODULES = cgi-picker.o cgi-common.o cc-common.o
+
+cc-picker.cgi: $(CGI_PICKER_MODULES)
+	$(CC) $(LDFLAGS) -o cc-picker.cgi $(CGI_PICKER_MODULES)
 
 cc-common.o cc-termios.o cc-ftdi.o parsefile.o history.o: cc-common.h
 parsefile.o cgi-now.o xml2csv.o: parsefile.h
