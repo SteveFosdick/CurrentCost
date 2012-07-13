@@ -51,8 +51,14 @@ static pf_status filter_cb_forw(pf_context *pf, time_t ts) {
 
 static pf_status filter_cb_back(pf_context *pf, time_t ts) {
     hist_context *ctx = pf->user_data;
-    if (ts < ctx->start_ts)
+    char tmstr[20];
+
+    if (ts < ctx->start_ts) {
+	strftime(tmstr, sizeof tmstr, date_iso, gmtime(&ts));
+	log_msg("stop at %s", tmstr);
 	return PF_STOP;
+    }
+    putc('.', stderr);
     return PF_SUCCESS;
 }
 
@@ -93,7 +99,9 @@ static pf_status fetch_data(hist_context *ctx) {
 	    pf->file_cb = pf_parse_forward;
 	    pf->filter_cb = filter_cb_forw;
 	    status = PF_SUCCESS;
-	    for (ts = ctx->start_ts + SECS_IN_DAY; ts < ctx->end_ts; ts += SECS_IN_DAY) {
+	    ts = ctx->start_ts;
+	    ts += SECS_IN_DAY - (ts % SECS_IN_DAY);
+	    for (; ts < ctx->end_ts; ts += SECS_IN_DAY) {
 		gmtime_r(&ts, &tm_ts);
 		strftime(file, sizeof file, xml_file, &tm_ts);
 		log_msg("read file '%s'", file);
