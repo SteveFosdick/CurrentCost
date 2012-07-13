@@ -40,27 +40,26 @@ static void send_labels(time_t start, time_t end, time_t delta, time_t step) {
     char tmstr[20];
     int ch;
 
-    if (delta <= SECS_IN_DAY) {
-	if (delta <= SECS_IN_HOUR) { /* hour */
-	    label_step = 600;
-	    label_fmt = "%H:%M";
-	} else {
-	    label_step = SECS_IN_HOUR * 4;
-	    label_fmt = "%H";
-	}
+    if (delta <= SECS_IN_HOUR * 5) {
+	label_fmt = "%H:%M";
+	if (delta <= SECS_IN_HOUR)
+	    label_step = 360;
+	else
+	    label_step = 1800;
+    } else if (delta <= SECS_IN_DAY) {
+	label_step = SECS_IN_HOUR * 2;
+	label_fmt = "%H";
+    } else if (delta < SECS_IN_WEEK) {
+	label_step = SECS_IN_DAY;
+	label_fmt = "%a";
     } else {
-	if (delta < SECS_IN_WEEK) {
-	    label_step = SECS_IN_DAY;
-	    label_fmt = "%a";
-	} else {
-	    label_step = 86400 * 4;
-	    label_fmt = "%d";
-	}
+	label_step = 86400 * 4;
+	label_fmt = "%d";
     }
-    label = start + label_step - (start % label_step);
+    label = start;
     fputs("g.labels=", stdout);
     ch = '{';
-    while (label < end) {
+    while (label <= end) {
 	strftime(tmstr, sizeof tmstr, label_fmt, localtime(&label));
 	printf("%c%ld:'%s'", ch, (long)((label-start)/step), tmstr);
 	ch = ',';
