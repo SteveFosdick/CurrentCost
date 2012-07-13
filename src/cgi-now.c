@@ -42,6 +42,7 @@ static const char http_hdr[] =
     "Refresh: 3\n";
 
 static const char html_middle[] =
+    "    <meta name=\"viewport\" content=\"initial-scale=2\"/>\n"
     "    <title>Energy Use Now</title>\n"
     "  </head>\n"
     "  <body>\n"

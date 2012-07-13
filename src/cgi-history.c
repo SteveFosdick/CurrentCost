@@ -17,6 +17,7 @@ static const char http_hdr[] =
     "Content-Type: text/html\n";
 
 static const char html_middle[] =
+    "    <meta name=\"viewport\" content=\"initial-scale=1\"/>\n"
     "    <title>Historic Engery Use %s to %s</title>\n"
     "    <script src=\"/currentcost/js-class.js\"></script>\n"
     "    <script src=\"/currentcost/bluff-src.js\"></script>\n"

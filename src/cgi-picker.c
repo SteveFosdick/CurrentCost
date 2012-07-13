@@ -10,11 +10,11 @@ static const char http_hdr[] =
     "Content-Type: text/html\n";
 
 static const char html_middle[] =
-    "<title>Current Cost Date Picker</title>\n"
+    "    <meta name=\"viewport\" content=\"initial-scale=2\"/>\n"
+    "    <title>Current Cost Date Picker</title>\n"
     "  </head>\n"
     "  <body>\n"
     "    <h1>Browse History</h1>\n"
-    "    <h2>Pick a Day</h2>\n"
     "    <table>\n";
 
 static const char cal_top[] =
