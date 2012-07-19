@@ -58,7 +58,6 @@ static pf_status filter_cb_back(pf_context *pf, time_t ts) {
 	log_msg("stop at %s", tmstr);
 	return PF_STOP;
     }
-    putc('.', stderr);
     return PF_SUCCESS;
 }
 
