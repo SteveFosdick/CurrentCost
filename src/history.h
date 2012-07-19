@@ -6,9 +6,9 @@
 
 typedef struct _point {
     float totals[MAX_SENSOR];
-    float counts[MAX_SENSOR];
+    int   counts[MAX_SENSOR];
     float temp_total;
-    float temp_count;
+    int   temp_count;
 } hist_point;
 
 typedef struct _hist_context {
