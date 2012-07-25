@@ -1,4 +1,5 @@
 #include "cc-common.h"
+#include "daemon.h"
 #include "logger.h"
 
 #include <errno.h>
@@ -11,6 +12,12 @@
 
 #include <ftdi.h>
 
+typedef struct {
+    int vendor_id;
+    int product_id;
+    int interface;
+} cc_opts_t;
+
 const char prog_name[] = "cc-ftdi";
 
 static const char log_file[] = "cc-ftdi.log";
@@ -18,7 +25,7 @@ static const char dev_null[] = "/dev/null";
 
 #define DEFAULT_VENDOR_ID  0x0403
 #define DEFAULT_PRODUCT_ID 0x6001
-#define DEFAULT_INTERFACE  0
+#define DEFAULT_INTERFACE  1
 #define MSG_PREFIX "cc-ftdi: "
 
 static volatile int exit_requested = 0;
@@ -27,7 +34,8 @@ static void exit_handler(int sig) {
     exit_requested = sig;
 }
 
-static void report_ftdi_err(int result, struct ftdi_context *ftdi, const char *msg) {
+static void report_ftdi_err(int result,
+			    struct ftdi_context *ftdi, const char *msg) {
     log_msg("%s: %d (%s)", msg, result, ftdi_get_error_string(ftdi));
 }
 
@@ -59,16 +67,19 @@ static int main_loop(struct ftdi_context *ftdi) {
     return status;
 }
 
-static int cc_ftdi(int vendor_id, int product_id, int interface) {
+static int child_process(void *user_data) {
+    cc_opts_t *opts = user_data;
     int status, result;
     struct ftdi_context ftdi;
     struct sigaction sa;
 
     if ((result = ftdi_init(&ftdi)) == 0) {
-	ftdi_set_interface(&ftdi, 1);
-	if ((result = ftdi_usb_open(&ftdi, 0x0403, 0x6001)) == 0) {
+	ftdi_set_interface(&ftdi, opts->interface);
+	result = ftdi_usb_open(&ftdi, opts->vendor_id, opts->product_id);
+	if (result == 0) {
 	    if ((result = ftdi_set_baudrate(&ftdi, 57600)) == 0) {
-		if ((result = ftdi_set_line_property(&ftdi, 8, STOP_BIT_1, NONE)) == 0) {
+		result = ftdi_set_line_property(&ftdi, 8, STOP_BIT_1, NONE);
+		if (result == 0) {
 		    memset(&sa, 0, sizeof sa);
 		    sa.sa_handler = exit_handler;
 		    if (sigaction(SIGTERM, &sa, NULL) == 0) {
@@ -83,7 +94,8 @@ static int cc_ftdi(int vendor_id, int product_id, int interface) {
 			status = 11;
 		    }
 		} else {
-		    report_ftdi_err(result, &ftdi, "unable to set line properties");
+		    report_ftdi_err(result, &ftdi,
+				    "unable to set line properties");
 		    status = 10;
 		}
 	    }
@@ -103,58 +115,15 @@ static int cc_ftdi(int vendor_id, int product_id, int interface) {
     return status;
 }
 
-static int start_daemon(const char *dir, int vendor_id, int product_id, int interface) {
-    int status = 0;
-    int  fd;
-    pid_t pid;
-
-    if ((fd = open(dev_null, O_RDWR)) >= 0) {
-	if (fd != 0)
-	    dup2(fd, 0);
-	if (fd != 1)
-	    dup2(fd, 1);
-	if (fd > 1)
-	    close(fd);
-	if (chdir(dir) == 0) {
-	    if ((fd = open(log_file, O_WRONLY|O_APPEND|O_CREAT, 0644)) >= 0) {
-		if (fd != 2) {
-		    dup2(fd, 2);
-		    close(fd);
-		}
-		if ((pid = fork()) == 0) {
-		    if (setsid() >= 0)
-			status = cc_ftdi(vendor_id, product_id, interface);
-		    else {
-			log_syserr("unable to set session id");
-			status = 6;
-		    }
-		}
-		else if (pid == -1) {
-		    log_syserr("unable to fork");
-		    status = 5;
-		}
-	    } else {
-		log_syserr("unable to open log file '%s'", log_file);
-		status = 4;
-	    }
-	} else {
-	    log_syserr("unable to chdir to '%s'", dir);
-	    status = 3;
-	}
-    } else {
-	log_syserr("unable to open NULL device '%s'", dev_null);
-	status = 2;
-    }
-    return status;
-}
-
 int main(int argc, char **argv) {
-    int status      = 0;
-    int vendor_id   = DEFAULT_VENDOR_ID;
-    int product_id  = DEFAULT_PRODUCT_ID;
-    int interface   = DEFAULT_INTERFACE;
+    int status = 0;
     const char *dir = default_dir;
+    cc_opts_t cc_opts;
     int c;
+
+    cc_opts.vendor_id   = DEFAULT_VENDOR_ID;
+    cc_opts.product_id  = DEFAULT_PRODUCT_ID;
+    cc_opts.interface   = DEFAULT_INTERFACE;
 
     while ((c = getopt(argc, argv, "d:i:p:v:")) != EOF) {
 	switch(c) {
@@ -162,13 +131,13 @@ int main(int argc, char **argv) {
 	    dir = optarg;
 	    break;
 	case 'i':
-	    interface = strtoul(optarg, NULL, 0);
+	    cc_opts.interface = strtoul(optarg, NULL, 0);
 	    break;
 	case 'p':
-	    product_id = strtoul(optarg, NULL, 0);
+	    cc_opts.product_id = strtoul(optarg, NULL, 0);
 	    break;
 	case 'v':
-	    vendor_id = strtoul(optarg, NULL, 0);
+	    cc_opts.vendor_id = strtoul(optarg, NULL, 0);
 	    break;
 	default:
 	    status = 1;
@@ -177,6 +146,6 @@ int main(int argc, char **argv) {
     if (status)
 	fputs("Usage: cc-ftdi [ -d dir ] [ -i interface ] [ -p product-id ] [ -v vendor-id ]\n", stderr);
     else
-	status = start_daemon(dir, vendor_id, product_id, interface);
+	status = cc_daemon(dir, log_file, child_process, &cc_opts);
     return status;
 }

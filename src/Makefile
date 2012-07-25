@@ -1,11 +1,13 @@
 all: cc-termios cc-ftdi xml2csv ascii-clean cc-now.cgi cc-history.cgi cc-picker.cgi cgi-test testlogger
 
-CC_TERMIOS_MODULES = cc-termios.o logger.o cc-common.o
+DAEMON_MODULES = logger.o daemon.o cc-common.o
+
+CC_TERMIOS_MODULES = cc-termios.o $(DAEMON_MODULES)
 
 cc-termios: $(CC_TERMIOS_MODULES)
 	$(CC) $(LDFLAGS) -o cc-termios $(CC_TERMIOS_MODULES)
 
-CC_FTDI_MODULES = cc-ftdi.o logger.o cc-common.o
+CC_FTDI_MODULES = cc-ftdi.o $(DAEMON_MODULES)
 
 cc-ftdi: $(CC_FTDI_MODULES)
 	$(CC) $(LDFLAGS) -o cc-ftdi $(CC_FTDI_MODULES) -lftdi -lusb
