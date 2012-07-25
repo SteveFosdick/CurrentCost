@@ -1,8 +1,11 @@
-all: cc-termios cc-ftdi xml2csv ascii-clean cc-now.cgi cc-history.cgi cc-picker.cgi cgi-test
+all: cc-termios cc-ftdi xml2csv ascii-clean cc-now.cgi cc-history.cgi cc-picker.cgi cgi-test testlogger
 
-cc-termios: cc-termios.o
+CC_TERMIOS_MODULES = cc-termios.o logger.o cc-common.o
 
-CC_FTDI_MODULES = cc-ftdi.o cc-common.o
+cc-termios: $(CC_TERMIOS_MODULES)
+	$(CC) $(LDFLAGS) -o cc-termios $(CC_TERMIOS_MODULES)
+
+CC_FTDI_MODULES = cc-ftdi.o logger.o cc-common.o
 
 cc-ftdi: $(CC_FTDI_MODULES)
 	$(CC) $(LDFLAGS) -o cc-ftdi $(CC_FTDI_MODULES) -lftdi -lusb
@@ -31,6 +34,11 @@ CGI_PICKER_MODULES = cgi-picker.o cgi-common.o cc-common.o
 
 cc-picker.cgi: $(CGI_PICKER_MODULES)
 	$(CC) $(LDFLAGS) -o cc-picker.cgi $(CGI_PICKER_MODULES)
+
+TEST_LOGGER_MODULES = testlogger.o logger.o cc-common.o
+
+testlogger: $(TEST_LOGGER_MODULES)
+	$(CC) $(LDFLAGS) -o testlogger $(TEST_LOGGER_MODULES)
 
 cc-common.o cc-termios.o cc-ftdi.o parsefile.o history.o: cc-common.h
 parsefile.o history.o cgi-now.o xml2csv.o: parsefile.h

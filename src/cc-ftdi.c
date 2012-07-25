@@ -1,4 +1,5 @@
 #include "cc-common.h"
+#include "logger.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -30,121 +31,31 @@ static void report_ftdi_err(int result, struct ftdi_context *ftdi, const char *m
     log_msg("%s: %d (%s)", msg, result, ftdi_get_error_string(ftdi));
 }
 
-typedef enum {
-    ST_GROUND,
-    ST_GOT_LT,
-    ST_GOT_M,
-    ST_GOT_S,
-    ST_GOT_G,
-    ST_COPY,
-    ST_NON_ASCII
-} state_t;
-
-static void end_msg(FILE *ofp) {
-    if (ofp != NULL) {
-	putc('\n', ofp);
-	fflush(ofp);
-    }
-}
-
 static int main_loop(struct ftdi_context *ftdi) {
-    state_t state = ST_GROUND;
+    logger_t *logger;
     unsigned char buf[4096];
-    unsigned char *ptr, *end, *copy = NULL;
     int status = 0;
-    int result, ch;
-    FILE *nfp, *ofp = NULL;
-    time_t now_secs, switch_secs = 0;
-    struct tm *tp;
-    char file[30];
+    int result;
 
-    log_msg("initialisation complete, begin main loop");
-    while (!exit_requested) {
-	result = ftdi_read_data(ftdi, buf, sizeof buf);
-	if (result > 0) {
-	    ptr = buf;
-	    end = ptr + result;
-	    while (ptr < end) {
-		ch = *ptr++;
-		switch(state) {
-		case ST_GROUND:
-		    if (ch == '<')
-			state = ST_GOT_LT;
-		    break;
-		case ST_GOT_LT:
-		    if (ch == 'm')
-			state = ST_GOT_M;
-		    else
-			state = ST_GROUND;
-		    break;
-		case ST_GOT_M:
-		    if (ch == 's')
-			state = ST_GOT_S;
-		    else
-			state = ST_GROUND;
-		    break;
-		case ST_GOT_S:
-		    if (ch == 'g')
-			state = ST_GOT_G;
-		    else
-			state = ST_GROUND;
-		    break;
-		case ST_GOT_G:
-		    if (ch == '>') {
-			time(&now_secs);
-			if (now_secs >= switch_secs) {
-			    tp = gmtime(&now_secs);
-			    strftime(file, sizeof file, xml_file, tp);
-			    if ((nfp = fopen(file, "a"))) {
-				if (ofp != NULL)
-				    fclose(ofp);
-				ofp = nfp;
-				switch_secs = now_secs + 86400 - (now_secs % 86400);
-			    } else
-				log_msg("unable to open file '%s' for append - %s", file, strerror(errno));
-			}
-			if (ofp != NULL)
-			    fprintf(ofp, "<msg><host-tstamp>%lu</host-tstamp>", (unsigned long)now_secs);
-			state = ST_COPY;
-			copy = ptr;
-		    } else
-			state = ST_GROUND;
-		    break;
-		case ST_COPY:
-		    if (ch < 0x20 || ch > 0x7e) {
-			if (ofp != NULL)
-			    fwrite(copy, ptr-copy-1, 1, ofp);
-			copy = NULL;
-			if (ch == '\n') {
-			    end_msg(ofp);
-			    state = ST_GROUND;
-			}
-			else
-			    state = ST_NON_ASCII;
-		    }
-		    break;
-		case ST_NON_ASCII:
-		    if (ch == '\n') {
-			end_msg(ofp);
-			state = ST_GROUND;
-		    } else if (ch >= 0x20 || ch <= 0x7e) {
-			copy = ptr;
-			state = ST_COPY;
-		    }
+    if ((logger = logger_new())) {
+	log_msg("initialisation complete, begin main loop");
+	while (!exit_requested) {
+	    result = ftdi_read_data(ftdi, buf, sizeof buf);
+	    if (result > 0)
+		logger_data(logger, buf, result);
+	    else {
+		if (result < 0) {
+		    report_ftdi_err(result, ftdi, "read error");
+		    status = 14;
 		}
+		sleep(1);
 	    }
-	    if (copy) {
-		if (ofp != NULL)
-		    fwrite(copy, ptr-copy, 1, ofp);
-		copy = buf;
-	    }
-	} else if (result < 0) {
-	    report_ftdi_err(result, ftdi, "read error");
-	    status = 13;
-	    sleep(1);
 	}
+	log_msg("shutting down on receipt of signal #%d", exit_requested);
+    } else {
+	log_syserr("unable to allocate logger");
+	status = 13;
     }
-    log_msg("shutting down on receipt of signal #%d", exit_requested);
     return status;
 }
 
