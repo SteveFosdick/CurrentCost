@@ -52,7 +52,7 @@ static void send_labels(time_t start, time_t end, time_t delta, time_t step) {
     } else if (delta <= SECS_IN_DAY) {
 	label_step = SECS_IN_HOUR * 2;
 	label_fmt = "%H";
-    } else if (delta < SECS_IN_WEEK) {
+    } else if (delta <= SECS_IN_WEEK) {
 	label_step = SECS_IN_DAY;
 	label_fmt = "%a";
     } else {
