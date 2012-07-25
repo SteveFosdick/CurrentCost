@@ -7,6 +7,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 static const char timestamp_pat[] =
     "<host-tstamp>([0-9]+)</host-tstamp>";
@@ -155,13 +156,16 @@ pf_status pf_parse_file(pf_context *ctx, const char *filename) {
 
     if ((fd = open(filename, O_RDONLY)) >= 0) {
 	if (fstat(fd, &stb) == 0) {
-	    if ((data = mmap(NULL, stb.st_size, PROT_READ, MAP_PRIVATE, fd, 0)))
+	    if ((data = mmap(NULL, stb.st_size, PROT_READ, MAP_PRIVATE, fd, 0))) {
 		status = ctx->file_cb(ctx, data, stb.st_size);
+		munmap(data, stb.st_size);
+	    }
 	    else
 		log_syserr("unable to map file '%s' into memory", filename);
 	}
 	else
 	    log_syserr("unable to fstat '%s'", filename);
+	close(fd);
     }
     else
 	log_syserr("unable to open file '%s' for reading", filename);
