@@ -8,12 +8,12 @@
 
 const char prog_name[] = "xml2csv";
 
-static pf_status sample_cb(pf_context *ctx, pf_sample *smp) {
+static mf_status sample_cb(pf_context *ctx, pf_sample *smp) {
     char tmstr[ISO_DATE_LEN];
     FILE *fp = ctx->user_data;
     strftime(tmstr, sizeof tmstr, date_iso, gmtime(&smp->timestamp));
     fprintf(fp, "%s,%g,%d,%g\n", tmstr, smp->temp, smp->sensor, smp->watts);
-    return PF_SUCCESS;
+    return MF_SUCCESS;
 }
 
 int main(int argc, char **argv) {
@@ -29,9 +29,9 @@ int main(int argc, char **argv) {
 	while (--argc) {
 	    arg = *++argv;
 	    if (arg[0] == '-' && arg[1] == 'f')
-		pf->file_cb = pf_parse_forward;
+		pf->file_cb = tf_parse_cb_forward;
 	    else if (arg[0] == '-' && arg[1] == 'b')
-		pf->file_cb = pf_parse_backward;
+		pf->file_cb = tf_parse_cb_backward;
 	    else {
 		if ((ext = strrchr(arg, '.')) && strcmp(ext, ".xml") == 0)
 		    len = ext - arg;
@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
 		strcpy(csv + len, ".csv");
 		if ((fp = fopen(csv, "w"))) {
 		    pf->user_data = fp;
-		    if (pf_parse_file(pf, arg) == PF_FAIL)
+		    if (pf_parse_file(pf, arg) == MF_FAIL)
 			status = 3;
 		    fclose(fp);
 		} else {

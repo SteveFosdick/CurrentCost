@@ -17,16 +17,16 @@ struct latest {
     double sensors[MAX_SENSOR];
 };
 
-static pf_status filter_cb(pf_context *ctx, time_t ts) {
+static mf_status filter_cb(pf_context *ctx, time_t ts) {
     struct latest *l = ctx->user_data;
     if (ts < (l->timestamp - 30))
-	return PF_STOP;
+	return MF_STOP;
     if (l->timestamp <= 0)
 	l->timestamp = ts;
-    return PF_SUCCESS;
+    return MF_SUCCESS;
 }
 
-static pf_status sample_cb(pf_context *ctx, pf_sample *smp) {
+static mf_status sample_cb(pf_context *ctx, pf_sample *smp) {
     struct latest *l = ctx->user_data;
 
     if (l->temp < 0)
@@ -34,7 +34,7 @@ static pf_status sample_cb(pf_context *ctx, pf_sample *smp) {
     if (smp->sensor >= 0 && smp->sensor < MAX_SENSOR)
 	if (l->sensors[smp->sensor] < 0)
 	    l->sensors[smp->sensor] = smp->watts;
-    return PF_SUCCESS;
+    return MF_SUCCESS;
 }
 
 static const char http_hdr[] =
@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
 	tp = gmtime(&secs);
 	strftime(name, sizeof(name), xml_file, tp);
 	if ((pf = pf_new())) {
-	    pf->file_cb = pf_parse_backward;
+	    pf->file_cb = tf_parse_cb_forward;
 	    pf->filter_cb = filter_cb;
 	    pf->sample_cb = sample_cb;
 	    pf->user_data = &l;
@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
 	    l.temp = -1.0;
 	    for (i = 0; i < MAX_SENSOR; i++)
 		l.sensors[i] = -1.0;
-	    if (pf_parse_file(pf, name) != PF_FAIL) {
+	    if (pf_parse_file(pf, name) != MF_FAIL) {
 		cgi_output(&l);
 		status = 0;
 	    }

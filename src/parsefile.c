@@ -36,7 +36,7 @@ pf_context *pf_new(void) {
     int err;
 
     if ((ctx = malloc(sizeof(pf_context)))) {
-	ctx->file_cb = pf_parse_forward;
+	ctx->file_cb = tf_parse_cb_forward;
 	ctx->filter_cb = pf_filter_all;
 	ctx->sample_cb = NULL;
 	if ((err = regcomp(&ctx->timestamp_re, timestamp_pat, REG_EXTENDED)) == 0) {
@@ -58,12 +58,12 @@ void pf_free(pf_context *ctx) {
     free(ctx);
 }
 
-pf_status pf_filter_all(pf_context *ctx, time_t ts) {
-    return PF_SUCCESS;
+mf_status pf_filter_all(pf_context *ctx, time_t ts) {
+    return MF_SUCCESS;
 }
 
-static pf_status exec_sample_re(pf_context *ctx, char *tail, time_t ts_secs) {
-    pf_status status = PF_SUCCESS;
+static mf_status exec_sample_re(pf_context *ctx, char *tail, time_t ts_secs) {
+    mf_status status = MF_SUCCESS;
     regmatch_t matches[SAMPLE_NMATCH], *match;
     int err;
     pf_sample smp;
@@ -79,96 +79,41 @@ static pf_status exec_sample_re(pf_context *ctx, char *tail, time_t ts_secs) {
 	status = ctx->sample_cb(ctx, &smp);
     } else if (err != REG_NOMATCH) {
 	log_reg_err(&ctx->sample_re, err, "executing sample");
-	status = PF_FAIL;
+	status = MF_FAIL;
     }
     return status;
 }
 
-static pf_status exec_timestamp_re(pf_context *ctx, char *line) {
-    pf_status status = PF_SUCCESS;
+static mf_status exec_timestamp_re(pf_context *ctx, char *line) {
+    mf_status status = MF_SUCCESS;
     regmatch_t matches[TIMESTAMP_NMATCH];
     int err;
     time_t ts_secs;
 
     if ((err = regexec(&ctx->timestamp_re, line, TIMESTAMP_NMATCH, matches, 0)) == 0) {
 	ts_secs = strtoul(line + matches[1].rm_so, NULL, 10);
-	if ((status = ctx->filter_cb(ctx, ts_secs)) == PF_SUCCESS)
+	if ((status = ctx->filter_cb(ctx, ts_secs)) == MF_SUCCESS)
 	    status = exec_sample_re(ctx, line + matches[0].rm_eo, ts_secs);
+	else if (status == MF_IGNORE)
+	    status = MF_SUCCESS;
     } else if (err != REG_NOMATCH) {
 	log_reg_err(&ctx->timestamp_re, err, "executing timestamp");
-	status = PF_FAIL;
+	status = MF_FAIL;
     }
     return status;
 }
 
-pf_status pf_parse_line(pf_context *ctx, const char *line, const char *end) {
-    pf_status status = PF_SUCCESS;
+mf_status pf_parse_line(void *user_data,
+			const void *file_data, size_t file_size) {
+
+    mf_status status = MF_SUCCESS;
     char *copy;
-    size_t size;
 
-    if (end > line) {
-	size = end - line;
-	copy = alloca(size + 1);
-	memcpy(copy, line, size);
-	copy[size] = '\0';
-	status = exec_timestamp_re(ctx, copy);
+    if (file_size > 0) {
+	copy = alloca(file_size + 1);
+	memcpy(copy, file_data, file_size);
+	copy[file_size] = '\0';
+	status = exec_timestamp_re((pf_context *)user_data, copy);
     }
-    return status;
-}
-
-pf_status pf_parse_forward(pf_context *ctx, void *data, size_t size) {
-    pf_status status = PF_SUCCESS;
-    const char *ptr = data;
-    const char *end = ptr + size;
-    const char *line = ptr;
-
-    do {
-	while (ptr < end && *ptr++ != '\n')
-	    ;
-	status = pf_parse_line(ctx, line, ptr-1);
-	line = ptr;
-    } while (status == PF_SUCCESS && ptr < end);
-
-    return status;
-}
-
-pf_status pf_parse_backward(pf_context *ctx, void *data, size_t size) {
-    pf_status status = PF_SUCCESS;
-    const char *start = data;
-    const char *ptr = start + size;
-    const char *line = ptr;
-
-    do {
-	while (line > start && *--line != '\n')
-	    ;
-	status = pf_parse_line(ctx, line+1, ptr);
-	ptr = line;
-    } while (status == PF_SUCCESS && ptr > start);
-
-    return status;
-}
-
-pf_status pf_parse_file(pf_context *ctx, const char *filename) {
-    pf_status status = PF_FAIL;
-    int fd;
-    struct stat stb;
-    void *data;
-
-    if ((fd = open(filename, O_RDONLY)) >= 0) {
-	if (fstat(fd, &stb) == 0) {
-	    if ((data = mmap(NULL, stb.st_size, PROT_READ, MAP_PRIVATE, fd, 0))) {
-		status = ctx->file_cb(ctx, data, stb.st_size);
-		munmap(data, stb.st_size);
-	    }
-	    else
-		log_syserr("unable to map file '%s' into memory", filename);
-	}
-	else
-	    log_syserr("unable to fstat '%s'", filename);
-	close(fd);
-    }
-    else
-	log_syserr("unable to open file '%s' for reading", filename);
-
     return status;
 }

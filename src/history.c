@@ -20,7 +20,7 @@ static void init_data(hist_context *ctx) {
 	ctx->flags[i] = 0;
 }
 
-static pf_status sample_cb(pf_context *pf, pf_sample *smp) {
+static mf_status sample_cb(pf_context *pf, pf_sample *smp) {
     hist_context *ctx = pf->user_data;
     hist_point *point;
     int sensor;
@@ -39,26 +39,26 @@ static pf_status sample_cb(pf_context *pf, pf_sample *smp) {
 	} else
 	    log_msg("point with timestamp %lu is too big", smp->timestamp);
     }
-    return PF_SUCCESS;
+    return MF_SUCCESS;
 }
 
-static pf_status filter_cb_forw(pf_context *pf, time_t ts) {
+static mf_status filter_cb_forw(pf_context *pf, time_t ts) {
     hist_context *ctx = pf->user_data;
+    if (ts < ctx->start_ts)
+	return MF_IGNORE;
     if (ts >= ctx->end_ts)
-	return PF_STOP;
-    return PF_SUCCESS;
+	return MF_STOP;
+    return MF_SUCCESS;
 }
 
-static pf_status filter_cb_back(pf_context *pf, time_t ts) {
+static mf_status filter_cb_back(pf_context *pf, time_t ts) {
     hist_context *ctx = pf->user_data;
-    char tmstr[20];
 
-    if (ts < ctx->start_ts) {
-	strftime(tmstr, sizeof tmstr, date_iso, gmtime(&ts));
-	log_msg("stop at %s", tmstr);
-	return PF_STOP;
-    }
-    return PF_SUCCESS;
+    if (ts < ctx->start_ts)
+	return MF_STOP;
+    if (ts >= ctx->end_ts)
+	return MF_IGNORE;
+    return MF_SUCCESS;
 }
 
 static inline int same_day(struct tm *a, struct tm *b) {
@@ -69,8 +69,8 @@ static inline int same_day(struct tm *a, struct tm *b) {
 
 #define SECS_IN_DAY (24 * 60 * 60)
 
-static pf_status fetch_data(hist_context *ctx) {
-    pf_status status = PF_FAIL;
+static mf_status fetch_data(hist_context *ctx) {
+    mf_status status = MF_FAIL;
     pf_context *pf;
     time_t now, ts;
     struct tm tm_now, tm_ts;
@@ -88,24 +88,24 @@ static pf_status fetch_data(hist_context *ctx) {
 	if (same_day(&tm_now, &tm_ts))
 	    mid = tm_now.tm_hour / 2;
 	if (tm_ts.tm_hour > mid) {
-	    pf->file_cb = pf_parse_backward;
+	    pf->file_cb = tf_parse_cb_forward;
 	    pf->filter_cb = filter_cb_back;
 	    log_msg("initial file to be read backwards");
 	}
 	strftime(file, sizeof file, xml_file, &tm_ts);
 	log_msg("read file '%s'", file);
-	if (pf_parse_file(pf, file) != PF_FAIL) {
-	    pf->file_cb = pf_parse_forward;
+	if (pf_parse_file(pf, file) != MF_FAIL) {
+	    pf->file_cb = tf_parse_cb_forward;
 	    pf->filter_cb = filter_cb_forw;
-	    status = PF_SUCCESS;
+	    status = MF_SUCCESS;
 	    ts = ctx->start_ts;
 	    ts += SECS_IN_DAY - (ts % SECS_IN_DAY);
 	    for (; ts < ctx->end_ts; ts += SECS_IN_DAY) {
 		gmtime_r(&ts, &tm_ts);
 		strftime(file, sizeof file, xml_file, &tm_ts);
 		log_msg("read file '%s'", file);
-		if (pf_parse_file(pf, file) == PF_FAIL) {
-		    status = PF_FAIL;
+		if (pf_parse_file(pf, file) == MF_FAIL) {
+		    status = MF_FAIL;
 		    break;
 		}
 	    }
@@ -127,7 +127,7 @@ hist_context *hist_get(time_t from, time_t to, int step) {
 	if ((ctx->data = malloc(points * sizeof(hist_point)))) {
 	    ctx->end = ctx->data + points;
 	    init_data(ctx);
-	    if (fetch_data(ctx) == PF_SUCCESS)
+	    if (fetch_data(ctx) == MF_SUCCESS)
 		return ctx;
 	} else
 	    log_syserr("unable to allocate space for history points");
