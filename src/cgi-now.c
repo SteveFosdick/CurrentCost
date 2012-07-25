@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
 	tp = gmtime(&secs);
 	strftime(name, sizeof(name), xml_file, tp);
 	if ((pf = pf_new())) {
-	    pf->file_cb = tf_parse_cb_forward;
+	    pf->file_cb = tf_parse_cb_backward;
 	    pf->filter_cb = filter_cb;
 	    pf->sample_cb = sample_cb;
 	    pf->user_data = &l;
