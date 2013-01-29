@@ -76,7 +76,7 @@ static void send_calendar(time_t start_secs, struct tm *tp) {
 	    tp = localtime(&secs);
 	}
 	fputs("</tr>\n", stdout);
-    } while (tp->tm_mon <= home_month);
+    } while (tp->tm_mon == home_month);
     fwrite(tab_tail, sizeof(tab_tail)-1, 1, stdout);
 }
 
