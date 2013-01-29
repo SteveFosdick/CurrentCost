@@ -55,9 +55,9 @@ static mf_status filter_cb_back(pf_context *pf, time_t ts) {
     hist_context *ctx = pf->user_data;
 
     if (ts < ctx->start_ts)
-	return MF_STOP;
+        return MF_STOP;
     if (ts >= ctx->end_ts)
-	return MF_IGNORE;
+        return MF_IGNORE;
     return MF_SUCCESS;
 }
 
@@ -88,7 +88,7 @@ static mf_status fetch_data(hist_context *ctx) {
 	if (same_day(&tm_now, &tm_ts))
 	    mid = tm_now.tm_hour / 2;
 	if (tm_ts.tm_hour > mid) {
-	    pf->file_cb = tf_parse_cb_forward;
+	    pf->file_cb = tf_parse_cb_backward;
 	    pf->filter_cb = filter_cb_back;
 	    log_msg("initial file to be read backwards");
 	}
