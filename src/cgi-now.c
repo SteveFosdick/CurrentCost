@@ -67,24 +67,37 @@ static const char html_bottom[] =
     "    <p>%s</p>\n"
     "    <p><a href=\"%scc-picker.cgi\">Browse Consumption History</a></p>\n";
 
+static void output_cell(double value, const char *label) {
+    const char *fmt = "<tr><td>%s</td><td>%g watts</td></tr>\n";
+
+    if (value >= 1000) {
+        fmt = "<tr><td>%s</td><td>%.2f Kw</td></tr>\n";
+	value /= 1000;
+    }
+    printf(fmt, label, value);
+}
+
 static void cgi_output(struct latest *l) {
     int i;
-    double value;
+    double value, total;
     struct tm *tp;
     char tmstr[30];
 
     fwrite(http_hdr, sizeof(http_hdr)-1, 1, stdout);
     send_html_top(stdout);
     printf(html_middle, base_url);
+    total = 0.0;
     for (i = 0; i < MAX_SENSOR; i++) {
 	value = l->sensors[i];
 	if (value >= 0) {
-	    printf("<tr><td>%s</td><td>", sensor_names[i]);
-	    if (value >= 1000)
-		printf("%.2f Kw</td></tr>\n", value / 1000);
-	    else
-		printf("%g watts</td></tr>\n", value);
+	    total += value;
+	    output_cell(value, sensor_names[i]);
 	}
+    }
+    value = l->sensors[0];
+    if (value >= 0) {
+       value = value + value - total;
+       output_cell(value, "Others");
     }
     tp = localtime(&l->timestamp);
     strftime(tmstr, sizeof tmstr, "%d/%m/%Y&nbsp;%H:%M:%S", tp);

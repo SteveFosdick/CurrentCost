@@ -30,5 +30,5 @@ extern void hist_free(hist_context *ctx);
 
 extern void hist_js_temp_out(hist_context *ctx, FILE *ofp);
 extern void hist_js_sens_out(hist_context *ctx, FILE *ofp, int sensor);
-
+extern void hist_js_others_out(hist_context *ctx, FILE *ofp);
 #endif

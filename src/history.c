@@ -175,3 +175,29 @@ void hist_js_sens_out(hist_context *ctx, FILE *ofp, int sensor) {
 	}
     }
 }
+
+void hist_js_others_out(hist_context *ctx, FILE *ofp) {
+    hist_point *point;
+    double other, total, value;
+    int ch, sensor;
+
+    ch = '[';
+    for (point = ctx->data; point < ctx->end; point++) {
+        other = 0.0;
+	if (point->counts[0] > 0) {
+	    total = 0.0;
+	    for (sensor = 1; sensor < MAX_SENSOR; sensor++) {
+	        value = 0.0;
+		if (point->counts[sensor] > 0)
+		    value = point->totals[sensor] / point->counts[sensor];
+		total += value;
+	    }
+	    value = point->totals[0] / point->counts[0];
+	    if (value > total)
+	      other = value - total;
+	}
+	fprintf(ofp, "%c%g", ch, other);
+	ch = ',';
+    }
+    putc(']', ofp);
+}

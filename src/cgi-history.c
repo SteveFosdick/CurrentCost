@@ -116,6 +116,9 @@ static int cgi_history(time_t start, time_t end) {
 		    fputs(");\n", stdout);
 		}
 	    }
+	    fputs("g.data(\"Others\", ", stdout);
+	    hist_js_others_out(hc, stdout);
+	    fputs(");\n", stdout);
 	    hist_free(hc);
 	    send_labels(start, end, delta, step);
 	    fwrite(graph_tail, sizeof(graph_tail)-1, 1, stdout);
