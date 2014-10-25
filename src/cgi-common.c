@@ -7,14 +7,14 @@
 #include <unistd.h>
 
 const char *sensor_names[] = {
-    "Whole House",
+    "Clamp Sensor",
     "Computers",
     "TV & Audio",
     "Utility",
     "Sensor 4",
     "Sensor 5",
-    "Sensor 6",
-    "Sensor 7",
+    "Solar",
+    "Import",
     "Sensor 8",
     "Sensor 9",
     "Sensor 10"
