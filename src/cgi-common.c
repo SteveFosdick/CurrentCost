@@ -23,12 +23,13 @@ const char *sensor_names[] = {
 const char base_url[] = "http://fosdick.dyndns.org/cgi-bin/";
 
 static const char html_top[] =
-    "\n"
+    "\n<!DOCTYPE html>\n"
     "<html>\n"
     "  <head>\n"
-    "    <link rel=\"stylesheet\" type=\"text/css\" href=\"/currentcost/currentcost.css\"/>\n"
-    "    <meta name=\"HandheldFriendly\" content=\"true\"/>\n"
-    "    <meta name=\"viewport\" content=\"target-densitydpi=device-dpi\"/>\n";
+    "    <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\"> \n"
+    "    <link rel=\"stylesheet\" type=\"text/css\" href=\"/currentcost/currentcost.css\">\n"
+    "    <meta name=\"HandheldFriendly\" content=\"true\">\n"
+    "    <meta name=\"viewport\" content=\"target-densitydpi=device-dpi\">\n";
 
 void send_html_top(FILE *ofp) {
     fwrite(html_top, sizeof(html_top)-1, 1, ofp);
