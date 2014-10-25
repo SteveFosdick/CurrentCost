@@ -9,6 +9,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <time.h>
+#include <sched.h>
 
 #include <ftdi.h>
 
@@ -72,6 +73,7 @@ static int child_process(void *user_data) {
     int status, result;
     struct ftdi_context ftdi;
     struct sigaction sa;
+    struct sched_param sp;
 
     if ((result = ftdi_init(&ftdi)) == 0) {
 	ftdi_set_interface(&ftdi, opts->interface);
@@ -83,9 +85,12 @@ static int child_process(void *user_data) {
 		    memset(&sa, 0, sizeof sa);
 		    sa.sa_handler = exit_handler;
 		    if (sigaction(SIGTERM, &sa, NULL) == 0) {
-			if (sigaction(SIGINT, &sa, NULL) == 0)
+			if (sigaction(SIGINT, &sa, NULL) == 0) {
+                            sp.sched_priority = 50;
+                            if (sched_setscheduler(0, SCHED_FIFO, &sp) < 0)
+                                log_syserr("unable to set real-time priority");
 			    status = main_loop(&ftdi);
-			else {
+			} else {
 			    log_syserr("unable to set handler for SIGINT");
 			    status = 12;
 			}
