@@ -109,7 +109,7 @@ mf_status pf_parse_line(void *user_data,
     mf_status status = MF_SUCCESS;
     char *copy;
 
-    if (file_size > 0) {
+    if (file_size > 135) {
 	copy = alloca(file_size + 1);
 	memcpy(copy, file_data, file_size);
 	copy[file_size] = '\0';
