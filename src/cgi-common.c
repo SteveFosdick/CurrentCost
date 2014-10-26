@@ -13,10 +13,10 @@ const char *sensor_names[] = {
     "Utility",
     "Sensor 4",
     "Sensor 5",
-    "Solar",
-    "Import",
-    "Sensor 8",
-    "Sensor 9",
+    "Solar (Smoothed)",
+    "Import (Smoothed)",
+    "Solar (Pulse)",
+    "Import (Pulse)",
     "Sensor 10"
 };
 
