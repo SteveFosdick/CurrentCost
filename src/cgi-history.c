@@ -28,6 +28,8 @@ static const char graph_head[] =
     "    <canvas id=\"graph\" width=\"1280\" height=\"720\"></canvas>\n"
     "    <script type=\"text/javascript\">\n"
     "var g = new Bluff.Line('graph', '1280x720');\n"
+    "g.title_font_size = 16;\n"
+    "g.legend_font_size = 10;\n"
     "g.title = '%s to %s';\n"
     "g.tooltips = true;\n"
     "g.theme_keynote();\n";
