@@ -19,7 +19,7 @@ struct latest {
 
 static mf_status filter_cb(pf_context *ctx, time_t ts) {
     struct latest *l = ctx->user_data;
-    if (ts < (l->timestamp - 30))
+    if (ts < (l->timestamp - 60))
 	return MF_STOP;
     if (l->timestamp <= 0)
 	l->timestamp = ts;

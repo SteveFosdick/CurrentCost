@@ -13,6 +13,12 @@ typedef struct _pf_sample {
     double watts;
 } pf_sample;
 
+typedef struct _pf_pulse {
+    time_t timestamp;
+    long   count;
+    int    ipu;
+} pf_pulse;
+
 typedef struct _pf_context pf_context;
 
 typedef mf_status (*pf_filter_cb)(pf_context *ctx, time_t ts);
@@ -22,9 +28,8 @@ struct _pf_context {
     mf_callback  file_cb;
     pf_filter_cb filter_cb;
     pf_sample_cb sample_cb;
-    regex_t      timestamp_re;
-    regex_t      sample_re;
     void         *user_data;
+    pf_pulse     pulse[MAX_SENSOR];
 };
 
 extern pf_context *pf_new(void);
