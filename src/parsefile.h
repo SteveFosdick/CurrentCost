@@ -6,18 +6,20 @@
 #include <regex.h>
 #include <time.h>
 
+typedef struct _fp_pulse {
+    long count;
+    int  ipu;
+} pf_pulse;
+
 typedef struct _pf_sample {
     time_t timestamp;
     double temp;
     int    sensor;
-    double watts;
+    union {
+        double   watts;
+        pf_pulse pulse;
+    } data;
 } pf_sample;
-
-typedef struct _pf_pulse {
-    time_t timestamp;
-    long   count;
-    int    ipu;
-} pf_pulse;
 
 typedef struct _pf_context pf_context;
 
@@ -28,8 +30,8 @@ struct _pf_context {
     mf_callback  file_cb;
     pf_filter_cb filter_cb;
     pf_sample_cb sample_cb;
+    pf_sample_cb pulse_cb;
     void         *user_data;
-    pf_pulse     pulse[MAX_SENSOR];
 };
 
 extern pf_context *pf_new(void);

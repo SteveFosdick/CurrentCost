@@ -12,7 +12,7 @@ static mf_status sample_cb(pf_context *ctx, pf_sample *smp) {
     char tmstr[ISO_DATE_LEN];
     FILE *fp = ctx->user_data;
     strftime(tmstr, sizeof tmstr, date_iso, gmtime(&smp->timestamp));
-    fprintf(fp, "%s,%g,%d,%g\n", tmstr, smp->temp, smp->sensor, smp->watts);
+    fprintf(fp, "%s,%g,%d,%g\n", tmstr, smp->temp, smp->sensor, smp->data.watts);
     return MF_SUCCESS;
 }
 
