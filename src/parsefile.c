@@ -43,7 +43,8 @@ mf_status pf_filter_all(pf_context * ctx, time_t ts)
     return MF_SUCCESS;
 }
 
-mf_status pf_default_pulse_cb(pf_context *ctx, pf_sample *smp) {
+mf_status pf_default_pulse_cb(pf_context * ctx, pf_sample * smp)
+{
     mf_status status = MF_SUCCESS;
     int sens_num, ipu;
     prev_pulse_t *prev;
@@ -64,7 +65,7 @@ mf_status pf_default_pulse_cb(pf_context *ctx, pf_sample *smp) {
             count_diff = count_old - smp->data.pulse.count;
             if (count_diff < 0)
                 count_diff = -count_diff;
-            watts = (double)count_diff * 3600000 / (ts_diff * ipu);
+            watts = (double) count_diff *3600000 / (ts_diff * ipu);
             if (watts >= 0 && watts <= 10000) {
                 smp->data.watts = watts;
                 status = ctx->sample_cb(ctx, smp);
@@ -99,7 +100,8 @@ static mf_status sensor_search(pf_context * ctx, char *tail, time_t ts_secs)
                         smp.data.pulse.count = strtoul(ptr + 5, &end, 10);
                         if (*end == '<') {
                             if ((ptr = strstr(end, "<ipu>"))) {
-                                smp.data.pulse.ipu = strtoul(ptr + 5, NULL, 10);
+                                smp.data.pulse.ipu =
+                                    strtoul(ptr + 5, NULL, 10);
                                 status = ctx->pulse_cb(ctx, &smp);
                             }
                         }
