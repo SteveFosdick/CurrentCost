@@ -22,7 +22,7 @@ struct latest {
 
 static mf_status filter_cb(pf_context *ctx, time_t ts) {
     struct latest *l = ctx->user_data;
-    if (ts < (l->timestamp - 60))
+    if (ts < (l->timestamp - 120))
 	return MF_STOP;
     if (l->timestamp <= 0)
 	l->timestamp = ts;
@@ -102,7 +102,7 @@ static const char html_bottom[] =
     "    <p><a href=\"%scc-picker.cgi\">Browse Consumption History</a></p>\n";
 
 static void output_cell(double value, const char *label) {
-    const char *fmt = "<tr><td>%s</td><td>%g watts</td></tr>\n";
+    const char *fmt = "<tr><td>%s</td><td>%.3g watts</td></tr>\n";
 
     if (value >= 1000) {
         fmt = "<tr><td>%s</td><td>%.2f Kw</td></tr>\n";
