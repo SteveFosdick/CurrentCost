@@ -15,9 +15,6 @@ struct latest {
     time_t timestamp;
     double temp;
     double watts[MAX_SENSOR];
-    time_t times[MAX_SENSOR];
-    long   counts[MAX_SENSOR];
-    int    ipus[MAX_SENSOR];
 };
 
 static mf_status filter_cb(pf_context *ctx, time_t ts) {
@@ -37,37 +34,6 @@ static mf_status sample_cb(pf_context *ctx, pf_sample *smp) {
     if (smp->sensor >= 0 && smp->sensor < MAX_SENSOR)
 	if (l->watts[smp->sensor] < 0)
 	    l->watts[smp->sensor] = smp->data.watts;
-    return MF_SUCCESS;
-}
-
-static mf_status pulse_cb(pf_context *ctx, pf_sample *smp) {
-    struct latest *l = ctx->user_data;
-    int ipu;
-    time_t ts_diff;
-    long count_old, count_diff;
-    double watts;
-
-    if (l->temp < 0)
-	l->temp = smp->temp;
-    if (smp->sensor >= 0 && smp->sensor < MAX_SENSOR) {
-        if ((ipu = smp->data.pulse.ipu) == 0)
-            ipu = l->ipus[smp->sensor];
-        l->ipus[smp->sensor] = ipu;
-        if ((count_old = l->counts[smp->sensor]) >= 0) {
-            ts_diff = l->times[smp->sensor] - smp->timestamp;
-            if (ts_diff < 0)
-                ts_diff = -ts_diff;
-            count_diff = count_old - smp->data.pulse.count;
-            if (count_diff < 0)
-                count_diff = -count_diff;
-            watts = (double)count_diff * 3600000 / (ts_diff * ipu);
-            if (watts >= 0 && watts <= 10000)
-                l->watts[smp->sensor] = watts;
-        } else {
-            l->times[smp->sensor] = smp->timestamp;
-            l->counts[smp->sensor] = smp->data.pulse.count;
-        }
-    }
     return MF_SUCCESS;
 }
 
@@ -162,14 +128,11 @@ int main(int argc, char **argv) {
 	    pf->file_cb = tf_parse_cb_backward;
 	    pf->filter_cb = filter_cb;
 	    pf->sample_cb = sample_cb;
-            pf->pulse_cb = pulse_cb;
 	    pf->user_data = &l;
 	    l.timestamp = 0;
 	    l.temp = -1.0;
 	    for (i = 0; i < MAX_SENSOR; i++) {
 		l.watts[i] = -1.0;
-                l.counts[i] = -1.0;
-                l.ipus[i] = 0;
             }
 	    if (pf_parse_file(pf, name) != MF_FAIL) {
 		cgi_output(&l);

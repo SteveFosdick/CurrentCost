@@ -3,12 +3,12 @@
 #include "parsefile.h"
 
 #include <stdlib.h>
+#include <string.h>
 
-static void init_data(hist_context * ctx, time_t from, time_t to)
+static void init_data(hist_context * ctx)
 {
     hist_point *point;
     hist_sensor *sens, *sens_end;
-    int sens_num;
 
     for (point = ctx->data; point < ctx->end; point++) {
         point->total = -1;
@@ -21,16 +21,9 @@ static void init_data(hist_context * ctx, time_t from, time_t to)
             sens->mean = -1;
             sens->total = 0;
             sens->count = 0;
-            sens->pulse_tstamp_min = to;
-            sens->pulse_tstamp_max = from;
-            sens->pulse_count_min = 0;
-            sens->pulse_count_max = 0;
         }
     }
-    for (sens_num = 0; sens_num < MAX_SENSOR; sens_num++) {
-        ctx->flags[sens_num] = 0;
-        ctx->pulse_ipu[sens_num] = 0;
-    }
+    memset(ctx->flags, 0, sizeof(ctx->flags));
 }
 
 static mf_status sample_cb(pf_context * pf, pf_sample * smp)
@@ -54,43 +47,6 @@ static mf_status sample_cb(pf_context * pf, pf_sample * smp)
             }
         } else
             log_msg("watt point with timestamp %lu is too big",
-                    smp->timestamp);
-    }
-    return MF_SUCCESS;
-}
-
-static mf_status pulse_cb(pf_context * pf, pf_sample * smp)
-{
-    hist_context *ctx = pf->user_data;
-    hist_point *point;
-    hist_sensor *sens_ptr;
-    time_t timestamp;
-    int sens_num;
-
-    timestamp = smp->timestamp;
-    if (timestamp >= ctx->start_ts && timestamp < ctx->end_ts) {
-        point = ctx->data + ((timestamp - ctx->start_ts) / ctx->step);
-        if (point < ctx->end) {
-            point->temp_total += smp->temp;
-            point->temp_count++;
-            sens_num = smp->sensor;
-            if (sens_num >= 0 && sens_num < MAX_SENSOR) {
-                sens_ptr = point->sensors + sens_num;
-                if (timestamp < sens_ptr->pulse_tstamp_min) {
-                    sens_ptr->pulse_tstamp_min = timestamp;
-                    sens_ptr->pulse_count_min = smp->data.pulse.count;
-                }
-                if (timestamp > sens_ptr->pulse_tstamp_max) {
-                    sens_ptr->pulse_tstamp_max = timestamp;
-                    sens_ptr->pulse_count_max = smp->data.pulse.count;
-                }
-                ctx->flags[sens_num] = 'P';
-                if (ctx->pulse_ipu[sens_num] == 0) {
-                    ctx->pulse_ipu[sens_num] = smp->data.pulse.ipu;
-                }
-            }
-        } else
-            log_msg("pulse point with timestamp %lu is too big",
                     smp->timestamp);
     }
     return MF_SUCCESS;
@@ -138,7 +94,6 @@ static mf_status fetch_data(hist_context * ctx)
     if ((pf = pf_new())) {
         pf->filter_cb = filter_cb_forw;
         pf->sample_cb = sample_cb;
-        pf->pulse_cb = pulse_cb;
         pf->user_data = ctx;
         time(&now);
         gmtime_r(&now, &tm_now);
@@ -174,40 +129,20 @@ static mf_status fetch_data(hist_context * ctx)
     return status;
 }
 
-static double pulse_calc(hist_sensor * sens, int ipu)
-{
-    time_t ts_diff;
-    long count_diff;
-    double watts;
-
-    ts_diff = sens->pulse_tstamp_max - sens->pulse_tstamp_min;
-    if (ts_diff > 0) {
-        count_diff = sens->pulse_count_max - sens->pulse_count_min;
-        watts = (double) count_diff *3600000 / (ts_diff * ipu);
-        if (watts >= 0 && watts <= 10000)
-            return watts;
-    }
-    return -1;
-}
-
 static void crunch_data(hist_context * ctx)
 {
     hist_point *point;
     hist_sensor *sens;
-    int sens_num, ipu;
+    int sens_num;
     double apps, total, value;
 
     for (point = ctx->data; point < ctx->end; point++) {
         apps = 0.0;
         for (sens_num = 0; sens_num < MAX_SENSOR; sens_num++) {
             sens = point->sensors + sens_num;
-            if ((ipu = ctx->pulse_ipu[sens_num]) > 0)
-                value = pulse_calc(sens, ipu);
-            else {
-                value = -1;
-                if (sens->count > 0)
-                    value = sens->total / sens->count;
-            }
+            value = -1;
+            if (sens->count > 0)
+                value = sens->total / sens->count;
             sens->mean = value;
             if (sens_num >= 1 && sens_num <= 5) // if applicance monitor.
                 apps += value;
@@ -235,7 +170,7 @@ hist_context *hist_get(time_t from, time_t to, int step)
         points = (to - from) / step + 1;
         if ((ctx->data = malloc(points * sizeof(hist_point)))) {
             ctx->end = ctx->data + points;
-            init_data(ctx, from, to);
+            init_data(ctx);
             if (fetch_data(ctx) == MF_SUCCESS) {
                 crunch_data(ctx);
                 return ctx;

@@ -12,12 +12,21 @@
 pf_context *pf_new(void)
 {
     pf_context *ctx;
+    prev_pulse_t *ptr, *end;
 
     if ((ctx = malloc(sizeof(pf_context)))) {
         ctx->file_cb = tf_parse_cb_forward;
         ctx->filter_cb = pf_filter_all;
         ctx->sample_cb = NULL;
-        ctx->pulse_cb = NULL;
+        ctx->pulse_cb = pf_default_pulse_cb;
+        ptr = ctx->prev_pulses;
+        end = ptr + MAX_SENSOR;
+        while (ptr < end) {
+            ptr->timestamp = 0;
+            ptr->count = -1;
+            ptr->ipu = 0;
+            ptr++;
+        }
         return ctx;
     } else
         log_syserr("allocate parse context");
@@ -32,6 +41,39 @@ void pf_free(pf_context * ctx)
 mf_status pf_filter_all(pf_context * ctx, time_t ts)
 {
     return MF_SUCCESS;
+}
+
+mf_status pf_default_pulse_cb(pf_context *ctx, pf_sample *smp) {
+    mf_status status = MF_SUCCESS;
+    int sens_num, ipu;
+    prev_pulse_t *prev;
+    time_t ts_diff;
+    long count_old, count_diff;
+    double watts;
+
+    sens_num = smp->sensor;
+    if (sens_num >= 0 && sens_num < MAX_SENSOR) {
+        prev = ctx->prev_pulses + sens_num;
+        if ((ipu = smp->data.pulse.ipu) == 0)
+            ipu = prev->ipu;
+        prev->ipu = ipu;
+        if ((count_old = prev->count) >= 0) {
+            ts_diff = prev->timestamp - smp->timestamp;
+            if (ts_diff < 0)
+                ts_diff = -ts_diff;
+            count_diff = count_old - smp->data.pulse.count;
+            if (count_diff < 0)
+                count_diff = -count_diff;
+            watts = (double)count_diff * 3600000 / (ts_diff * ipu);
+            if (watts >= 0 && watts <= 10000) {
+                smp->data.watts = watts;
+                status = ctx->sample_cb(ctx, smp);
+            }
+        }
+        prev->timestamp = smp->timestamp;
+        prev->count = smp->data.pulse.count;
+    }
+    return status;
 }
 
 static mf_status sensor_search(pf_context * ctx, char *tail, time_t ts_secs)

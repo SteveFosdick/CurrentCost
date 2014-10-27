@@ -34,7 +34,7 @@ static const char graph_head[] =
     "g.tooltips = true;\n"
     "g.theme_keynote();\n";
 
-static const char graph_tail[] =
+static const char graph_end[] =
     "};\n"
     "g.draw();\n"
     "    </script>\n";
@@ -124,9 +124,9 @@ static int cgi_history(time_t start, time_t end) {
 	    fputs("g.data(\"Others\", ", stdout);
 	    hist_js_others_out(hc, stdout);
 	    fputs(");\n", stdout);
-	    hist_free(hc);
 	    send_labels(start, end, delta, step);
-	    fwrite(graph_tail, sizeof(graph_tail)-1, 1, stdout);
+	    hist_free(hc);
+	    fwrite(graph_end, sizeof(graph_end)-1, 1, stdout);
 	    send_navlinks(start, end, delta);
 	    send_html_tail(stdout);
 	} else
