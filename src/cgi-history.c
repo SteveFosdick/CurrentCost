@@ -118,6 +118,9 @@ static int cgi_history(time_t start, time_t end) {
 		    fputs(");\n", stdout);
 		}
 	    }
+	    fputs("g.data(\"Total Consumption\", ", stdout);
+	    hist_js_total_out(hc, stdout);
+	    fputs(");\n", stdout);
 	    fputs("g.data(\"Others\", ", stdout);
 	    hist_js_others_out(hc, stdout);
 	    fputs(");\n", stdout);
