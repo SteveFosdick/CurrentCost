@@ -84,7 +84,7 @@ static void send_hist_link(time_t start, time_t end, const char *desc)
 static void send_navlinks(time_t start, time_t end, time_t delta)
 {
     time_t half = delta / 2;
-    time_T qtr = delta / 4;
+    time_t qtr = delta / 4;
 
     fputs("    <p>\n", stdout);
     send_hist_link(start - delta, end - delta, "<<<");
