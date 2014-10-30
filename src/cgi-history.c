@@ -87,14 +87,14 @@ static void send_navlinks(time_t start, time_t end, time_t delta)
     time_t qtr = delta / 4;
 
     fputs("    <p>\n", stdout);
-    send_hist_link(start - delta, end - delta, "<<<");
-    send_hist_link(start - half, end - half, "<<");
-    send_hist_link(start - qtr, end - qtr, "<");
+    send_hist_link(start - delta, end - delta, "<<");
+    send_hist_link(start - half, end - half, "<");
+    send_hist_link(start + qtr, end - qtr, "+");
+    send_hist_link(start - qtr, end + qtr, "-");
+    send_hist_link(start + half, end + half, ">");
+    send_hist_link(start + delta, end + delta, ">>");
     printf("<a href=\"%scc-now.cgi\">Current Consumption</a>\n", base_url);
     printf("<a href=\"%scc-picker.cgi\">Browse History</a>\n", base_url);
-    send_hist_link(start + qtr, end + qtr, ">");
-    send_hist_link(start + half, end + half, ">>");
-    send_hist_link(start + delta, end + delta, ">>>");
     fputs("    </p>\n", stdout);
 }
 
