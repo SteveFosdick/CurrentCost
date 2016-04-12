@@ -20,7 +20,11 @@ const char *sensor_names[] = {
     "Sensor 10"
 };
 
-const char base_url[] = "http://fosdick.slyip.net/cgi-bin/";
+#ifndef BASE_URL
+#define BASE_URL "http://fosdick.slyip.net/cgi-bin/"
+#endif
+
+const char base_url[] = BASE_URL;
 
 /* *INDENT-OFF* */
 static const char html_top[] =
