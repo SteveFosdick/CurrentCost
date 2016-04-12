@@ -6,7 +6,11 @@
 #include <time.h>
 #include <sys/time.h>
 
-const char default_dir[] = "/share/fozzy/Data/CurrentCost";
+#ifndef DEFAULT_DIR
+#define DEFAULT_DIR "/share/fozzy/Data/CurrentCost"
+#endif
+
+const char default_dir[] = DEFAULT_DIR;
 const char xml_file[] = "cc-%Y-%m-%d.xml";
 const char date_iso[] = "%Y-%m-%dT%H:%M:%SZ";
 
