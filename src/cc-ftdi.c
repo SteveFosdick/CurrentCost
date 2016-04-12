@@ -8,8 +8,10 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #include <sched.h>
+#include <unistd.h>
 
 #include <ftdi.h>
 
