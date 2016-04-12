@@ -15,7 +15,7 @@ typedef struct _sqlite_ud {
 } sqlite_ud_t;
 
 const char prog_name[] = "xml2sqlite";
-const char db_file[] = DATA_DIR "/cc.db";
+const char db_file[] = DEFAULT_DIR "/cc.db";
 const char sample_sql[] = "INSERT INTO samples VALUES (?, ?, ?, ?)";
 const char pulse_sql[] = "INSERT INTO pulses VALUES (?, ?, ?, ?, ?)";
 const char begin_txn[] = "BEGIN TRANSACTION";
