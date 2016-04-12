@@ -37,6 +37,11 @@ TEST_LOGGER_MODULES = testlogger.o logger.o cc-common.o
 testlogger: $(TEST_LOGGER_MODULES)
 	$(CC) $(LDFLAGS) -o testlogger $(TEST_LOGGER_MODULES)
 
+XML2SQLITE_MODULES = xml2sqlite.o parsefile.o textfile.o mapfile.o cc-common.o
+
+xml2sqlite: $(XML2SQLITE_MODULES)
+	$(CC) $(LDFLAGS) -o xml2sqlite $(XML2SQLITE_MODULES) -lsqlite3
+
 cc-common.o cc-termios.o cc-ftdi.o parsefile.o history.o: cc-common.h
 parsefile.o history.o cgi-now.o xml2csv.o: parsefile.h
 history.o: history.h
