@@ -110,8 +110,8 @@ static inline void exec_stmt(db_logger_t *db_logger, const char *stmt,
     }
 }
 
-extern void db_logger_line(db_logger_t *db_logger, struct timeval *when,
-			   unsigned char *line, unsigned char *line_end) {
+extern void db_logger_line(db_logger_t *db_logger,
+			   struct timeval *when, char *line, char *line_end) {
     const char *start, *end, *stmt;
     const char *values[NUM_COLS];
     int        lengths[NUM_COLS];

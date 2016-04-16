@@ -50,14 +50,14 @@ static void switch_file(file_logger_t *file_logger, time_t now_secs)
         log_syserr("unable to open file '%s' for append", file);
 }
 
-extern void file_logger_line(file_logger_t *file_logger, struct timeval *when,
-			     unsigned char *line,unsigned char *end)
+extern void file_logger_line(file_logger_t *file_logger,
+			     struct timeval *when, char *line, char *end)
 {
 
-    const unsigned char *ptr;
+    const char *ptr;
     FILE *fp;
 
-    if ((ptr = (unsigned char *)strstr((char *)line, "<msg>"))) {
+    if ((ptr = strstr((char *)line, "<msg>"))) {
 	if (when->tv_sec >= file_logger->switch_secs)
 	    switch_file(file_logger, when->tv_sec);
 	if ((fp = file_logger->xml_fp)) {

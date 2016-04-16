@@ -8,8 +8,8 @@
 struct _logger_t {
     file_logger_t *file_logger;
     db_logger_t   *db_logger;
-    unsigned char *line_ptr;
-    unsigned char line[MAX_LINE_LEN+1];
+    char          *line_ptr;
+    char          line[MAX_LINE_LEN+1];
 };
 
 extern logger_t *logger_new(const char *db_conn)
@@ -36,7 +36,7 @@ extern void logger_free(logger_t * logger)
     free(logger);
 }
 
-static void invoke_loggers(logger_t * logger, unsigned char *end) {
+static void invoke_loggers(logger_t * logger, char *end) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     file_logger_line(logger->file_logger, &tv, logger->line, end);
@@ -48,8 +48,8 @@ extern void logger_data(logger_t * logger,
 {
     const unsigned char *src_ptr = data;
     const unsigned char *src_end = data + size;
-    unsigned char *line_ptr = logger->line_ptr;
-    unsigned char *line_max = logger->line + MAX_LINE_LEN;
+    char *line_ptr = logger->line_ptr;
+    char *line_max = logger->line + MAX_LINE_LEN;
     int ch;
 
     while (src_ptr < src_end) {
