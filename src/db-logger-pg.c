@@ -14,8 +14,13 @@ struct _db_logger_t {
     PGconn     *conn;
 };
 
-static const char power_sql[] = "INSERT INTO powers VALUES ($1, $2)";
-static const char pulse_sql[] = "INSERT INTO pulse VALUES ($1, $2)";
+static const char power_sql[] =
+    "INSERT INTO power (time_stamp, sensor, temperature, watts) "
+    "VALUES ($1, $2, $3, $4)";
+
+static const char pulse_sql[] =
+    "INSERT INTO pulse (time_stamp, sensor, temperature, pulses) "
+    "VALUES ($1, $2, $3, $4)";
 
 static void log_db_err(PGconn *conn, const char *msg, ...) {
     va_list ap;
@@ -104,7 +109,8 @@ extern void db_logger_free(db_logger_t *db_logger) {
 }
 
 static inline void exec_stmt(db_logger_t *db_logger, const char *stmt,
-			     const char **values, int *lengths, struct timeval *when) {
+			     const char **values, int *lengths,
+			     struct timeval *when) {
     PGconn *conn;
     struct tm  *tp;
     char tstamp[24];
@@ -112,9 +118,10 @@ static inline void exec_stmt(db_logger_t *db_logger, const char *stmt,
     if ((conn = connect_ok(db_logger))) {
 	values[0] = tstamp;
 	tp = gmtime(&when->tv_sec);
-	lengths[0] = sprintf(tstamp, "%04d%02d%02dT%02d%02d%02d.%06d",
+	lengths[0] = sprintf(tstamp, "%04d-%02d-%02d %02d:%02d:%02d.%06d+00",
 			     tp->tm_year + 1900, tp->tm_mon, tp->tm_mday,
-			     tp->tm_hour,tp->tm_min, tp->tm_sec, (int)when->tv_usec);
+			     tp->tm_hour,tp->tm_min, tp->tm_sec,
+			     (int)when->tv_usec);
 	PGresult *res = PQexecPrepared(conn, stmt, NUM_COLS, values, lengths, NULL, 0);
 	if (res) {
 	    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
