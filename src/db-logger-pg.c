@@ -17,9 +17,29 @@ struct _db_logger_t {
 static const char power_sql[] = "INSERT INTO powers VALUES ($1, $2)";
 static const char pulse_sql[] = "INSERT INTO pulse VALUES ($1, $2)";
 
-static void log_db_err(const char *what, const PGresult *res) {
-    log_msg("error %s: %s", what, PQresultErrorMessage(res));
+static void log_db_err(PGconn *conn, const char *msg, ...) {
+    va_list ap;
+    struct timeval tv;
+    struct tm *tp;
+    char stamp[24];
+    const char *ptr, *end;
+
+    gettimeofday(&tv, NULL);
+    tp = localtime(&tv.tv_sec);
+    strftime(stamp, sizeof stamp, log_hdr1, tp);
+    fprintf(stderr, log_hdr2, stamp, (int) (tv.tv_usec / 1000), prog_name);
+    va_start(ap, msg);
+    vfprintf(stderr, msg, ap);
+    putc('\n', stderr);
+    va_end(ap);
+    ptr = PQerrorMessage(conn);
+    while ((end = strchr(ptr, '\n'))) {
+	fprintf(stderr, log_hdr2, stamp, (int) (tv.tv_usec / 1000), prog_name);
+	fwrite(ptr, end - ptr + 1, 1, stderr);
+	ptr = end + 1;
+    }
 }
+
 
 static inline PGconn *connect_and_prepare(db_logger_t *db_logger) {
     PGconn *conn;
@@ -36,20 +56,20 @@ static inline PGconn *connect_and_prepare(db_logger_t *db_logger) {
 			    db_logger->conn = conn;
 			    return conn;
 			} else {
-			    log_db_err("preparing pulse SQL", res);
+			    log_db_err(conn, "error preparing pulse SQL");
 			    PQclear(res);
 			}
 		    } else
 			log_syserr("out of memory preparing pulse SQL");
 		} else {
-		    log_db_err("preparing power SQL", res);
+		    log_db_err(conn, "error preparing power SQL");
 		    PQclear(res);
 		}
 	    } else
 		log_syserr("out of memory preparing power SQL");
 	} else {
-	    log_msg("unable to connect to database '%s' - %s",
-		    db_logger->conninfo, PQerrorMessage(conn));
+	    log_db_err(conn, "unable to connect to database '%s'",
+		       db_logger->conninfo);
 	}
 	PQfinish(conn);
     } else
@@ -98,7 +118,7 @@ static inline void exec_stmt(db_logger_t *db_logger, const char *stmt,
 	PGresult *res = PQexecPrepared(conn, stmt, NUM_COLS, values, lengths, NULL, 0);
 	if (res) {
 	    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-		log_msg("error executing %s insert statement - %s", PQresultErrorMessage(res));
+		log_db_err(conn, "error executing %s insert statment", stmt);
 		if (PQstatus(conn) != CONNECTION_OK) {
 		    log_msg("closing dead database connection");
 		    PQfinish(conn);
