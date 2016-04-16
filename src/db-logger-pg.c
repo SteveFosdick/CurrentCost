@@ -45,7 +45,6 @@ static void log_db_err(PGconn *conn, const char *msg, ...) {
     }
 }
 
-
 static inline PGconn *connect_and_prepare(db_logger_t *db_logger) {
     PGconn *conn;
     PGresult *res;
@@ -139,7 +138,8 @@ static inline void exec_stmt(db_logger_t *db_logger, const char *stmt,
 
 extern void db_logger_line(db_logger_t *db_logger,
 			   struct timeval *when, char *line, char *line_end) {
-    const char *start, *end, *stmt;
+    char *start, *end;
+    const char *stmt;
     const char *values[NUM_COLS];
     int        lengths[NUM_COLS];
 
@@ -147,14 +147,18 @@ extern void db_logger_line(db_logger_t *db_logger,
     if ((start = strstr((char *)line, "<tmpr>"))) {
 	start += 6;
 	if ((end = strchr(start, '<'))) {
+	    *end = '\0';
 	    values[2] = start;
 	    lengths[2] = end - start;
-	    if ((start = strstr(end, "<id>"))) {
+	    if ((start = strstr(end+1, "<id>"))) {
 		start += 4;
 		if ((end = strchr(start, '<'))) {
+		    *end = '\0';
 		    values[1] = start;
 		    lengths[1] = end - start;
-		    if ((start = strstr(end, "<type>"))) {
+		    if ((start = strstr(end+1, "<type>"))) {
+			start += 6;
+			fprintf(stderr, "found type, tail=%s\n", start);
 			stmt = NULL;
 			if (*start == '1') {
 			    if ((start = strstr(start + 1, "<watts>"))) {
@@ -168,6 +172,7 @@ extern void db_logger_line(db_logger_t *db_logger,
 			    }
 			}
 			if (stmt && (end = strchr(start, '<'))) {
+			    *end = '\0';
 			    values[3] = start;
 			    lengths[3] = end - start;
 			    exec_stmt(db_logger, stmt, values, lengths, when);
