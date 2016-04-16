@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <string.h>
+#include <stdio.h>
 #include <sys/time.h>
 #include <time.h>
 #include <termios.h>
@@ -12,6 +13,11 @@
 
 #define BUF_SIZE   100
 #define INTERVAL   4
+
+typedef struct {
+    const char *db_conn;
+    const char *port;
+} cc_opts_t;
 
 const char prog_name[] = "cc-termios";
 
@@ -31,51 +37,48 @@ static void timer_cb(int sig)
     cb_count++;
 }
 
-static int main_loop(const char *port, int fd, struct termios *tio)
+static int main_loop(logger_t *logger, const char *port, int fd, struct termios *tio)
 {
-    logger_t *logger;
     int init_port = 1;
     unsigned char buf[BUF_SIZE];
     ssize_t nbytes;
 
-    if ((logger = logger_new())) {
-        while (!exit_requested) {
-            if (init_port) {
-                if (tcsetattr(fd, TCSANOW, tio) == -1) {
-                    log_syserr
-                        ("unable to set terminal attributes on port '%s'",
-                         port);
-                    return 16;
-                }
-                cb_count = init_port = 0;
-            }
-            if ((nbytes = read(fd, buf, sizeof buf)) > 0) {
-                logger_data(logger, buf, nbytes);
-                if (nbytes > 1)
-                    cb_count = 0;
-            } else {
-                if (cb_count > 1) {
-                    log_msg("port locked, re-initialising");
-                    init_port = 1;
-                }
-            }
-        }
-        return 0;
-    } else {
-        log_syserr("unable to allocate logger");
-        return 15;
+    log_msg("initialisation complete, begin main loop");
+    while (!exit_requested) {
+	if (init_port) {
+	    if (tcsetattr(fd, TCSANOW, tio) == -1) {
+		log_syserr
+		    ("unable to set terminal attributes on port '%s'",
+		     port);
+		return 16;
+	    }
+	    cb_count = init_port = 0;
+	}
+	if ((nbytes = read(fd, buf, sizeof buf)) > 0) {
+	    logger_data(logger, buf, nbytes);
+	    if (nbytes > 1)
+		cb_count = 0;
+	} else {
+	    if (cb_count > 1) {
+		log_msg("port locked, re-initialising");
+		init_port = 1;
+	    }
+	}
     }
+    log_msg("shutting down on receipt of signal #%d", exit_requested);
+    return 0;
 }
 
 int child_process(void *user_data)
 {
-    const char *port = user_data;
+    cc_opts_t *opts = user_data;
     int status, fd;
     struct sigaction sa;
     struct itimerval it;
     struct termios tio;
+    logger_t *logger;
 
-    if ((fd = open(port, O_RDONLY | O_NONBLOCK)) >= 0) {
+    if ((fd = open(opts->port, O_RDONLY | O_NONBLOCK)) >= 0) {
         memset(&sa, 0, sizeof sa);
         sa.sa_handler = exit_handler;
         if (sigaction(SIGTERM, &sa, NULL) == 0) {
@@ -96,7 +99,13 @@ int child_process(void *user_data)
                         tio.c_cc[VMIN] = 1;
                         tio.c_cc[VTIME] = 0;
 
-                        status = main_loop(port, fd, &tio);
+			if ((logger = logger_new(opts->db_conn))) {
+			    status = main_loop(logger, opts->port, fd, &tio);
+			    logger_free(logger);
+			} else {
+			    log_syserr("unable to allocate logger");
+			    status = 13;
+			}
                     } else {
                         log_syserr("unable to set interval timer");
                         status = 14;
@@ -114,7 +123,7 @@ int child_process(void *user_data)
             status = 11;
         }
     } else {
-        log_syserr("unable to open port '%s'", port);
+        log_syserr("unable to open port '%s'", opts->port);
         status = 8;
     }
     return status;
@@ -124,24 +133,30 @@ int main(int argc, char **argv)
 {
     int status = 0;
     const char *dir = default_dir;
-    const char *port = default_port;
+    cc_opts_t cc_opts;
     int c;
 
-    while ((c = getopt(argc, argv, "d:p:")) != EOF) {
+    cc_opts.db_conn = NULL;
+    cc_opts.port = default_port;
+
+    while ((c = getopt(argc, argv, "d:D:p:")) != EOF) {
         switch (c) {
         case 'd':
             dir = optarg;
             break;
+	case 'D':
+	    cc_opts.db_conn = optarg;
+	    break;
         case 'p':
-            port = optarg;
+            cc_opts.port = optarg;
             break;
         default:
             status = 1;
         }
     }
     if (status)
-        fputs("Usage: cc-termios [ -d dir ] [ -p port ]\n", stderr);
+        fputs("Usage: cc-termios [ -d dir ] [ -D <db-conn> ] [ -p port ]\n", stderr);
     else
-        status = cc_daemon(dir, log_file, child_process, (void *) port);
+        status = cc_daemon(dir, log_file, child_process, &cc_opts);
     return status;
 }

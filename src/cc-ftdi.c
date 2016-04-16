@@ -16,6 +16,7 @@
 #include <ftdi.h>
 
 typedef struct {
+    const char *db_conn;
     int vendor_id;
     int product_id;
     int interface;
@@ -44,32 +45,26 @@ static void report_ftdi_err(int result,
     log_msg("%s: %d (%s)", msg, result, ftdi_get_error_string(ftdi));
 }
 
-static int main_loop(struct ftdi_context *ftdi)
+static int main_loop(logger_t *logger, struct ftdi_context *ftdi)
 {
-    logger_t *logger;
     unsigned char buf[4096];
     int status = 0;
     int result;
 
-    if ((logger = logger_new())) {
-        log_msg("initialisation complete, begin main loop");
-        while (!exit_requested) {
-            result = ftdi_read_data(ftdi, buf, sizeof buf);
-            if (result > 0)
-                logger_data(logger, buf, result);
-            else {
-                if (result < 0) {
-                    report_ftdi_err(result, ftdi, "read error");
-                    status = 14;
-                }
-                sleep(1);
-            }
-        }
-        log_msg("shutting down on receipt of signal #%d", exit_requested);
-    } else {
-        log_syserr("unable to allocate logger");
-        status = 13;
+    log_msg("initialisation complete, begin main loop");
+    while (!exit_requested) {
+	result = ftdi_read_data(ftdi, buf, sizeof buf);
+	if (result > 0)
+	    logger_data(logger, buf, result);
+	else {
+	    if (result < 0) {
+		report_ftdi_err(result, ftdi, "read error");
+		status = 14;
+	    }
+	    sleep(1);
+	}
     }
+    log_msg("shutting down on receipt of signal #%d", exit_requested);
     return status;
 }
 
@@ -80,6 +75,7 @@ static int child_process(void *user_data)
     struct ftdi_context ftdi;
     struct sigaction sa;
     struct sched_param sp;
+    logger_t *logger;
 
     if ((result = ftdi_init(&ftdi)) == 0) {
         ftdi_set_interface(&ftdi, opts->interface);
@@ -96,7 +92,13 @@ static int child_process(void *user_data)
                             if (sched_setscheduler(0, SCHED_FIFO, &sp) < 0)
                                 log_syserr
                                     ("unable to set real-time priority");
-                            status = main_loop(&ftdi);
+			    if ((logger = logger_new(opts->db_conn))) {
+				status = main_loop(logger, &ftdi);
+				logger_free(logger);
+			    } else {
+				log_syserr("unable to allocate logger");
+				status = 13;
+			    }
                         } else {
                             log_syserr("unable to set handler for SIGINT");
                             status = 12;
@@ -133,15 +135,19 @@ int main(int argc, char **argv)
     cc_opts_t cc_opts;
     int c;
 
+    cc_opts.db_conn = NULL;
     cc_opts.vendor_id = DEFAULT_VENDOR_ID;
     cc_opts.product_id = DEFAULT_PRODUCT_ID;
     cc_opts.interface = DEFAULT_INTERFACE;
 
-    while ((c = getopt(argc, argv, "d:i:p:v:")) != EOF) {
+    while ((c = getopt(argc, argv, "d:D:i:p:v:")) != EOF) {
         switch (c) {
         case 'd':
             dir = optarg;
             break;
+	case 'D':
+	    cc_opts.db_conn = optarg;
+	    break;
         case 'i':
             cc_opts.interface = strtoul(optarg, NULL, 0);
             break;
@@ -157,7 +163,7 @@ int main(int argc, char **argv)
     }
     if (status)
         fputs
-            ("Usage: cc-ftdi [ -d dir ] [ -i interface ] [ -p product-id ] [ -v vendor-id ]\n",
+            ("Usage: cc-ftdi [ -d dir ] [ -D <db-conn> ] [ -i interface ] [ -p product-id ] [ -v vendor-id ]\n",
              stderr);
     else
         status = cc_daemon(dir, log_file, child_process, &cc_opts);

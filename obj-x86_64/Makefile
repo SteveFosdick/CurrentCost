@@ -1,10 +1,7 @@
-CFLAGS	= -Wall -O3 -DDEFAULT_DIR='"/data/Misc/CurrentCost"' -DBASE_URL='"http://meije/cgi-bin/"'
-LDFLAGS = -Wall -O3
 VPATH=../src
+CFLAGS	 = -Wall -O3 -DDEFAULT_DIR='"/data/Misc/CurrentCost"' -DBASE_URL='"http://meije/cgi-bin/"'
+LDFLAGS  = -Wall -O3
+FTDI_INC = -I /usr/include/libftdi1
+FTDI_LIB = -lftdi1
 
 include ../src/Makefile
-
-CC_FTDI_MODULES = ../src/cc-ftdi.c $(DAEMON_MODULES)
-
-cc-ftdi: $(CC_FTDI_MODULES)
-	$(CC) $(CFLAGS) -I /usr/include/libftdi1 $(LDFLAGS) -o cc-ftdi $(CC_FTDI_MODULES) -lftdi1 -lusb
