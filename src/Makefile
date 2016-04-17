@@ -1,4 +1,4 @@
-all: cc-termios cc-ftdi xml2csv ascii-clean cc-now.cgi cc-history.cgi cc-picker.cgi cgi-test test-db-logger xml2sqlite
+all: cc-termios cc-ftdi xml2csv ascii-clean cc-now.cgi cc-history.cgi cc-picker.cgi cgi-test test-db-logger xml2pg xml2sqlite
 
 DAEMON_MODULES = logger.o file-logger.o db-logger-pg.o daemon.o cc-common.o
 
@@ -49,6 +49,11 @@ TEST_DB_LOGGER_MODULES = test-db-logger.o db-logger-pg.o cc-common.o
 
 test-db-logger: $(TEST_DB_LOGGER_MODULES)
 	$(CC) $(LDFLAGS) -o test-db-logger $(TEST_DB_LOGGER_MODULES) -lpq -lpthread
+
+XML2PG_MODULES = xml2pg.o db-logger-pg.o  cc-common.o
+
+xml2pg: $(XML2PG_MODULES)
+	$(CC) $(LDFLAGS) -o xml2pg $(XML2PG_MODULES) -lpq -lpthread
 
 XML2SQLITE_MODULES = xml2sqlite.o parsefile.o textfile.o mapfile.o cc-common.o
 
