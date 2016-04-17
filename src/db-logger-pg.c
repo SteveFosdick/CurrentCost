@@ -75,23 +75,34 @@ static ExecStatusType prepare_statements(PGconn *conn) {
     PGresult *res;
     ExecStatusType code;
 
-    if ((res = PQprepare(conn, "power", power_sql, 0, NULL))) {
+    if ((res = PQexec(conn, "SET TIME ZONE UTC"))) {
 	if ((code = PQresultStatus(res)) == PGRES_COMMAND_OK) {
 	    PQclear(res);
-	    if ((res = PQprepare(conn, "pulse", pulse_sql, 0, NULL))) {
+	    if ((res = PQprepare(conn, "power", power_sql, 0, NULL))) {
 		if ((code = PQresultStatus(res)) == PGRES_COMMAND_OK) {
 		    PQclear(res);
-		    return code;
+		    if ((res = PQprepare(conn, "pulse", pulse_sql, 0, NULL))) {
+			if ((code = PQresultStatus(res)) == PGRES_COMMAND_OK) {
+			    PQclear(res);
+			    return code;
+			} else {
+			    log_db_err(conn, "error preparing pulse SQL");
+			    PQclear(res);
+			}
+		    } else {
+			log_syserr("out of memory preparing pulse SQL");
+			code = PGRES_FATAL_ERROR;
+		    }
 		} else {
-		    log_db_err(conn, "error preparing pulse SQL");
+		    log_db_err(conn, "error preparing power SQL");
 		    PQclear(res);
 		}
 	    } else {
-		log_syserr("out of memory preparing pulse SQL");
+		log_syserr("out of memory preparing power SQL");
 		code = PGRES_FATAL_ERROR;
 	    }
 	} else {
-	    log_db_err(conn, "error preparing power SQL");
+	    log_db_err(conn, "error setting timezone");
 	    PQclear(res);
 	}
     } else {
@@ -131,7 +142,7 @@ static void db_exec(db_logger_t *db_logger, sample_t *smp) {
     smp->values[0] = tstamp;
     tp = gmtime(&smp->when.tv_sec);
     smp->lengths[0] = snprintf(tstamp, sizeof(tstamp),
-			       "%04d-%02d-%02d %02d:%02d:%02d.%06d+00",
+			       "%04d-%02d-%02d %02d:%02d:%02d.%06d",
 			       tp->tm_year + 1900, tp->tm_mon + 1, tp->tm_mday,
 			       tp->tm_hour, tp->tm_min, tp->tm_sec,
 			       (int)(smp->when.tv_usec));
