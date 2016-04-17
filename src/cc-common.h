@@ -5,6 +5,7 @@
 
 #define MAX_SENSOR   10
 #define ISO_DATE_LEN 21
+#define MAX_LINE_LEN 1000
 
 extern const char prog_name[];
 extern const char default_dir[];

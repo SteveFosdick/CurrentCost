@@ -3,8 +3,6 @@
 #include "file-logger.h"
 #include "db-logger.h"
 
-#define MAX_LINE_LEN 1000
-
 struct _logger_t {
     file_logger_t *file_logger;
     db_logger_t   *db_logger;
@@ -49,7 +47,7 @@ extern void logger_data(logger_t * logger,
     const unsigned char *src_ptr = data;
     const unsigned char *src_end = data + size;
     char *line_ptr = logger->line_ptr;
-    char *line_max = logger->line + MAX_LINE_LEN;
+    char *line_max = logger->line + MAX_LINE_LEN - 1;
     int ch;
 
     while (src_ptr < src_end) {
@@ -63,6 +61,7 @@ extern void logger_data(logger_t * logger,
 		line_ptr = logger->line;
 	    }
 	} else if ((ch == '\n' || ch == '\r') && line_ptr > logger->line) {
+	    *line_ptr++ = '\n';
 	    invoke_loggers(logger, line_ptr);
 	    line_ptr = logger->line;
 	}
