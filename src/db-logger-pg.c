@@ -174,10 +174,10 @@ static void *db_thread(void *ptr) {
     return NULL;
 }
 
-static char *parse_elem(sample_t *smp, int index, const char *pat,
-			char *str, const char *end) {
-    const char *pat_ptr;
-    char *str_ptr, *dst_start, *dst_ptr, *dst_max;
+static const char *parse_elem(sample_t *smp, int index, const char *pat,
+			      const char *str, const char *end) {
+    const char *pat_ptr, *str_ptr;
+    char *dst_start, *dst_ptr, *dst_max;
     int ch;
 
     while (str < end) {
@@ -221,9 +221,9 @@ static void enqueue(db_logger_t *db_logger, sample_t *smp, const char *stmt) {
     pthread_mutex_unlock(&db_logger->lock);
 }
 
-extern void db_logger_line(db_logger_t *db_logger,
-			   struct timeval *when, char *line, char *line_end) {
-    char *ptr;
+extern void db_logger_line(db_logger_t *db_logger, struct timeval *when,
+			   const char *line, const char *line_end) {
+    const char *ptr;
     sample_t *smp;
 
     if ((smp = malloc(sizeof(sample_t)))) {
