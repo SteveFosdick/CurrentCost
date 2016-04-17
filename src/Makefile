@@ -5,7 +5,7 @@ DAEMON_MODULES = logger.o file-logger.o db-logger-pg.o daemon.o cc-common.o
 CC_TERMIOS_MODULES = cc-termios.o $(DAEMON_MODULES)
 
 cc-termios: $(CC_TERMIOS_MODULES)
-	$(CC) $(LDFLAGS) -o cc-termios $(CC_TERMIOS_MODULES) -lpq
+	$(CC) $(LDFLAGS) -o cc-termios $(CC_TERMIOS_MODULES) -lpq -lpthread
 
 CC_FTDI_MODULES = cc-ftdi.o $(DAEMON_MODULES)
 
@@ -13,7 +13,7 @@ cc-ftdi.o: cc-ftdi.c
 	$(CC) $(CFLAGS) $(FTDI_INC) -c $^
 
 cc-ftdi: $(CC_FTDI_MODULES)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o cc-ftdi $(CC_FTDI_MODULES) $(FTDI_LIB) -lpq
+	$(CC) $(CFLAGS) $(LDFLAGS) -o cc-ftdi $(CC_FTDI_MODULES) $(FTDI_LIB) -lpq -lpthread
 
 XML2CSV_MODULES = xml2csv.o parsefile.o textfile.o mapfile.o cc-common.o
 
@@ -48,7 +48,7 @@ testlogger: $(TEST_LOGGER_MODULES)
 TEST_DB_LOGGER_MODULES = test-db-logger.o db-logger-pg.o cc-common.o
 
 test-db-logger: $(TEST_DB_LOGGER_MODULES)
-	$(CC) $(LDFLAGS) -o test-db-logger $(TEST_DB_LOGGER_MODULES) -lpq
+	$(CC) $(LDFLAGS) -o test-db-logger $(TEST_DB_LOGGER_MODULES) -lpq -lpthread
 
 XML2SQLITE_MODULES = xml2sqlite.o parsefile.o textfile.o mapfile.o cc-common.o
 
