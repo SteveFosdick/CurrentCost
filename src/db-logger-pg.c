@@ -35,6 +35,7 @@ struct _db_logger_t {
     pthread_cond_t  wait_data;
     sample_t        *head;
     sample_t        *tail;
+    struct timeval  last;
 };
 
 static const char power_sql[] =
@@ -136,6 +137,12 @@ static void db_exec(db_logger_t *db_logger, sample_t *smp) {
     char tstamp[TIME_STAMP_SIZE];
     PGresult *res;
 
+    /* avoid a primary key clash on timestamps */
+    if (smp->when.tv_sec == db_logger->last.tv_sec)
+	if (smp->when.tv_usec == db_logger->last.tv_usec)
+	    smp->when.tv_usec++;
+    db_logger->last = smp->when;
+    
     smp->values[0] = tstamp;
     tp = gmtime(&smp->when.tv_sec);
     smp->lengths[0] = snprintf(tstamp, sizeof(tstamp),
