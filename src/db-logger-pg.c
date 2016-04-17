@@ -150,7 +150,6 @@ static void db_exec(db_logger_t *db_logger, sample_t *smp) {
     }
     else
 	log_syserr("out of memory executing %s SQL", smp->ptr.stmt);
-    free(smp);
 }
 
 static void *db_thread(void *ptr) {
@@ -169,6 +168,7 @@ static void *db_thread(void *ptr) {
 	if (smp->ptr.stmt == NULL)
 	    break;
 	db_exec(db_logger, smp);
+	free(smp);
     }
     PQfinish(db_logger->conn);
     return NULL;
@@ -274,13 +274,10 @@ extern db_logger_t *db_logger_new(const char *db_conn) {
 }
 	
 extern void db_logger_free(db_logger_t *db_logger) {
-    sample_t *smp;
+    sample_t smp;
 
     if (db_logger) {
-	if ((smp = malloc(sizeof(sample_t))))
-	    enqueue(db_logger, smp, NULL);
-	else
-	    log_syserr("unable to allocate db termnation message");
+	enqueue(db_logger, &smp, NULL); // send "EOF" message.
 	pthread_join(db_logger->thread, NULL);
 	free(db_logger);
     }
