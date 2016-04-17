@@ -54,7 +54,7 @@ extern void logger_data(logger_t * logger,
 
     while (src_ptr < src_end) {
         ch = *src_ptr++;
-	if (ch >= 0x20 || ch <= 0x7e) {
+	if (ch >= 0x20 && ch <= 0x7e) {
 	    if (line_ptr < line_max)
 		*line_ptr++ = ch;
 	    else {
