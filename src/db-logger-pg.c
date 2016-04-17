@@ -132,7 +132,7 @@ static void db_exec(db_logger_t *db_logger, sample_t *smp) {
     tp = gmtime(&smp->when.tv_sec);
     smp->lengths[0] = snprintf(tstamp, sizeof(tstamp),
 			       "%04d-%02d-%02d %02d:%02d:%02d.%06d+00",
-			       tp->tm_year + 1900, tp->tm_mon, tp->tm_mday,
+			       tp->tm_year + 1900, tp->tm_mon + 1, tp->tm_mday,
 			       tp->tm_hour, tp->tm_min, tp->tm_sec,
 			       (int)(smp->when.tv_usec));
     res = PQexecPrepared(db_logger->conn, smp->ptr.stmt, NUM_COLS,
