@@ -35,9 +35,6 @@ struct _db_logger_t {
     pthread_cond_t  wait_data;
     sample_t        *head;
     sample_t        *tail;
-    struct timeval lost_from;
-    struct timeval lost_to;
-    int            lost_count;
 };
 
 static const char power_sql[] =
