@@ -9,7 +9,7 @@
 
 #include <libpq-fe.h>
 
-#define NUM_COLS  4
+#define NUM_COLS  5
 #define MAX_DATA  (NUM_COLS * 20)
 #define TIME_STAMP_SIZE 24
 #define RETRY_WAIT 30
@@ -39,12 +39,12 @@ struct _db_logger_t {
 };
 
 static const char power_sql[] =
-    "INSERT INTO power (time_stamp, sensor, temperature, watts) "
-    "VALUES ($1, $2, $3, $4)";
+    "INSERT INTO power (time_stamp, sensor, id, temperature, watts) "
+    "VALUES ($1, $2, $3, $4, $5)";
 
 static const char pulse_sql[] =
-    "INSERT INTO pulse (time_stamp, sensor, temperature, pulses) "
-    "VALUES ($1, $2, $3, $4)";
+    "INSERT INTO pulse (time_stamp, sensor, id, temperature, pulses) "
+    "VALUES ($1, $2, $3, $4, $5)";
 
 static void log_db_err(PGconn *conn, const char *msg, ...) {
     va_list ap;
@@ -146,10 +146,10 @@ static void db_exec(db_logger_t *db_logger, sample_t *smp) {
     smp->values[0] = tstamp;
     tp = gmtime(&smp->when.tv_sec);
     smp->lengths[0] = snprintf(tstamp, sizeof(tstamp),
-			       "%04d-%02d-%02d %02d:%02d:%02d.%06d",
+			       "%04d-%02d-%02d %02d:%02d:%02d.%06u",
 			       tp->tm_year + 1900, tp->tm_mon + 1, tp->tm_mday,
 			       tp->tm_hour, tp->tm_min, tp->tm_sec,
-			       (int)(smp->when.tv_usec));
+			       (unsigned)(smp->when.tv_usec));
     res = PQexecPrepared(db_logger->conn, smp->ptr.stmt, NUM_COLS,
 			 smp->values, smp->lengths, NULL, 0);
     if (res) {
@@ -189,10 +189,8 @@ static void *db_thread(void *ptr) {
     return NULL;
 }
 
-static const char *parse_elem(sample_t *smp, int index, const char *pat,
-			      const char *str, const char *end) {
+static const char *find_tok(const char *pat, const char *str, const char *end) {
     const char *pat_ptr, *str_ptr;
-    char *dst_start, *dst_ptr, *dst_max;
     int ch;
 
     while (str < end) {
@@ -203,22 +201,69 @@ static const char *parse_elem(sample_t *smp, int index, const char *pat,
 	    ch = *pat_ptr++;
 	    str_ptr++;
 	}
-	if (!ch) {
-	    dst_ptr = dst_start = smp->ptr.data_ptr;
-	    dst_max = smp->data + MAX_DATA;
-	    while (str_ptr < end && dst_ptr < dst_max) {
-		if ((ch = *str_ptr++) == '<') {
+	if (!ch)
+	    return str_ptr;
+	str++;
+    }
+    return NULL;
+}
+
+static const char *parse_int(sample_t *smp, int index, const char *pat,
+			     const char *str, const char *end) {
+    const char *src_ptr;
+    char *dst_start, *dst_ptr, *dst_max;
+    int ch;
+    size_t len;
+
+    if ((src_ptr = find_tok(pat, str, end))) {
+	dst_ptr = dst_start = smp->ptr.data_ptr;
+	dst_max = smp->data + MAX_DATA;
+	while (src_ptr < end && dst_ptr < dst_max) {
+	    ch = *src_ptr++;
+	    if (ch >= '0' && ch <= '9')
+		*dst_ptr++ = ch;
+	    else if (ch == '<') {
+		len = dst_ptr - dst_start;
+		if (len > 0) {
 		    *dst_ptr++ = '\0';
 		    smp->values[index] = dst_start;
-		    smp->lengths[index] = dst_ptr - dst_start;
+		    smp->lengths[index] = len;
 		    smp->ptr.data_ptr = dst_ptr;
-		    return str_ptr;
+		    return src_ptr;
 		}
-		*dst_ptr++ = ch;
-	    }
-	    break;
+	    } else
+		break;
 	}
-	str++;
+    }
+    return NULL;
+}
+
+static const char *parse_real(sample_t *smp, int index, const char *pat,
+			      const char *str, const char *end) {
+    const char *src_ptr;
+    char *dst_start, *dst_ptr, *dst_max;
+    int ch;
+    size_t len;
+
+    if ((src_ptr = find_tok(pat, str, end))) {
+	dst_ptr = dst_start = smp->ptr.data_ptr;
+	dst_max = smp->data + MAX_DATA;
+	while (src_ptr < end && dst_ptr < dst_max) {
+	    ch = *src_ptr++;
+	    if ((ch >= '0' && ch <= '9') || ch == '.')
+		*dst_ptr++ = ch;
+	    else if (ch == '<') {
+		len = dst_ptr - dst_start;
+		if (len > 0) {
+		    *dst_ptr++ = '\0';
+		    smp->values[index] = dst_start;
+		    smp->lengths[index] = len;
+		    smp->ptr.data_ptr = dst_ptr;
+		    return src_ptr;
+		}
+	    } else
+		break;
+	}
     }
     return NULL;
 }
@@ -244,14 +289,16 @@ extern void db_logger_line(db_logger_t *db_logger, struct timeval *when,
     if ((smp = malloc(sizeof(sample_t)))) {
 	smp->when = *when;
 	smp->ptr.data_ptr = smp->data;
-	if ((ptr = parse_elem(smp, 2, "<tmpr>", line, line_end))) {
-	    if ((ptr = parse_elem(smp, 1, "<id>", ptr, line_end))) {
-		if (parse_elem(smp, 3, "<watts>", ptr, line_end)) {
-		    enqueue(db_logger, smp, "power");
-		    return;
-		} else if (parse_elem(smp, 3, "<imp>", ptr, line_end)) {
-		    enqueue(db_logger, smp, "pulse");
-		    return;
+	if ((ptr = parse_real(smp, 3, "<tmpr>", line, line_end))) {
+	    if ((ptr = parse_int(smp, 1, "<sensor>",  ptr, line_end))) {
+		if ((ptr = parse_int(smp, 2, "<id>", ptr, line_end))) {
+		    if (parse_real(smp, 4, "<watts>", ptr, line_end)) {
+			enqueue(db_logger, smp, "power");
+			return;
+		    } else if (parse_int(smp, 4, "<imp>", ptr, line_end)) {
+			enqueue(db_logger, smp, "pulse");
+			return;
+		    }
 		}
 	    }
 	}
