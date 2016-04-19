@@ -61,6 +61,7 @@ xml2sqlite: $(XML2SQLITE_MODULES)
 	$(CC) $(LDFLAGS) -o xml2sqlite $(XML2SQLITE_MODULES) -lsqlite3
 
 cc-common.o cc-termios.o cc-ftdi.o parsefile.o history.o: cc-common.h
+cc-termios.o cc-ftdi.o: daemon.h logger.h
 parsefile.o history.o cgi-now.o xml2csv.o: parsefile.h
 history.o: history.h
 logger.o cc-termios.o cc_ftdi.o: logger.h
