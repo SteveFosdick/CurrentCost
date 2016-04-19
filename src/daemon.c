@@ -7,7 +7,7 @@
 
 static const char dev_null[] = "/dev/null";
 
-int cc_daemon_fork(const char *pid_file, daemon_cb callback, void *user_data) {
+int cc_daemon_fork(const char *pid_file, daemon_cb callback, cc_ctx_t *ctx) {
     int   status;
     FILE  *fp;
     pid_t pid;
@@ -16,7 +16,7 @@ int cc_daemon_fork(const char *pid_file, daemon_cb callback, void *user_data) {
 	if ((pid = fork()) == 0) {
 	    fclose(fp);
 	    if (setsid() >= 0)
-		status = callback(user_data);
+		status = callback(ctx);
 	    else {
 		log_syserr("unable to set session id");
 		status = 7;
@@ -25,8 +25,10 @@ int cc_daemon_fork(const char *pid_file, daemon_cb callback, void *user_data) {
 	    if (pid == -1) {
 		log_syserr("unable to fork");
 		status = 6;
-	    } else
+	    } else {
 		fprintf(fp, "%d\n", pid);
+		status = 0;
+	    }
 	    fclose(fp);
 	}
     } else {
@@ -37,7 +39,7 @@ int cc_daemon_fork(const char *pid_file, daemon_cb callback, void *user_data) {
 }    
 
 int cc_daemon_main(const char *dir, const char *log_file,
-		   daemon_cb callback, void *user_data)
+		   daemon_cb callback, cc_ctx_t *ctx)
 {
     int status = 0;
     int fd;
@@ -55,7 +57,7 @@ int cc_daemon_main(const char *dir, const char *log_file,
                     dup2(fd, 2);
                     close(fd);
                 }
-		status = callback(user_data);
+		status = callback(ctx);
             } else {
                 log_syserr("unable to open log file '%s'", log_file);
                 status = 4;
