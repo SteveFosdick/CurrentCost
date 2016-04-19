@@ -63,7 +63,8 @@ extern void file_logger_line(file_logger_t *file_logger, struct timeval *when,
 	if ((fp = file_logger->xml_fp)) {
 	    ptr += 5;
 	    fwrite(line, ptr - line, 1, fp);
-	    fprintf(fp, "<host-tstamp>%lu</host-tstamp>", when->tv_sec);
+	    fprintf(fp, "<host-tstamp>%lu.%06lu</host-tstamp>",
+		    when->tv_sec, when->tv_usec);
 	    fwrite(ptr, end - ptr, 1, fp);
 	    fflush(fp);
 	}
