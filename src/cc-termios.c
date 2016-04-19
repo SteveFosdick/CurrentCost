@@ -11,7 +11,7 @@
 #include <termios.h>
 #include <unistd.h>
 
-#define BUF_SIZE   100
+#define BUF_SIZE   128
 #define INTERVAL   5
 
 struct _cc_ctx {
@@ -45,15 +45,15 @@ static int main_loop(cc_ctx_t *ctx) {
     int status, fd, init_port = 1;
     unsigned char buf[BUF_SIZE];
     ssize_t nbytes;
-    
-    if ((fd = open(ctx->port, O_RDONLY | O_NONBLOCK)) >= 0) {
+
+    if ((fd = open(ctx->port, O_RDONLY)) >= 0) {
 	log_msg("initialisation complete, begin main loop");
 	status = 0;
 	while (!exit_requested) {
 	    if (init_port) {
 		if (tcsetattr(fd, TCSANOW, &ctx->tio) == -1) {
-		    log_syserr("unable to set terminal attributes "
-			       "on port '%s'", ctx->port);
+		    log_syserr("unable to set terminal attributes on port '%s'",
+			       ctx->port);
 		    status = 16;
 		    break;
 		}
@@ -98,13 +98,13 @@ int cc_termios(cc_ctx_t *ctx)
 		    it.it_value.tv_usec = 0;
 		    if (setitimer(ITIMER_REAL, &it, NULL) == 0) {
 			ctx->tio.c_iflag = IGNBRK | IGNCR;
-		    ctx->tio.c_oflag = 0;
-		    ctx->tio.c_cflag = CS8 | CREAD | CLOCAL;
-		    ctx->tio.c_lflag = 0;
-		    cfsetospeed(&ctx->tio, B57600);
-		    cfsetispeed(&ctx->tio, B57600);
-		    ctx->tio.c_cc[VMIN] = 1;
-		    ctx->tio.c_cc[VTIME] = 0;
+			ctx->tio.c_oflag = 0;
+			ctx->tio.c_cflag = CS8 | CREAD | CLOCAL;
+			ctx->tio.c_lflag = 0;
+			cfsetospeed(&ctx->tio, B57600);
+			cfsetispeed(&ctx->tio, B57600);
+			ctx->tio.c_cc[VMIN] = 120;
+			ctx->tio.c_cc[VTIME] = 0;
 			status = main_loop(ctx);
 		    } else {
 			log_syserr("unable to set interval timer");
