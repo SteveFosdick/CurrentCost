@@ -31,11 +31,9 @@ int cc_daemon(const char *dir, const char *log_file, const char *pid_file,
 		if ((fp = fopen(pid_file, "w"))) {
 		    if ((pid = fork()) == 0) {
 			fclose(fp);
-			if (setsid() >= 0) {
-			    log_msg("child running callback");
+			if (setsid() >= 0)
 			    status = callback(ctx);
-			    log_msg("child callback returns %d", status);
-			} else {
+			else {
 			    log_syserr("unable to set session id");
 			    status = 7;
 			}
@@ -44,7 +42,6 @@ int cc_daemon(const char *dir, const char *log_file, const char *pid_file,
 			    log_syserr("unable to fork");
 			    status = 6;
 			} else {
-			    log_msg("parent, child_pid=%d", pid);
 			    fprintf(fp, "%d\n", pid);
 			    status = 0;
 			}
