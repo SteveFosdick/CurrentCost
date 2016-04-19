@@ -338,9 +338,7 @@ extern db_logger_t *db_logger_new(const char *db_conn) {
 extern void db_logger_free(db_logger_t *db_logger) {
     sample_t smp;
 
-    if (db_logger) {
-	enqueue(db_logger, &smp, NULL); // send "EOF" message.
-	pthread_join(db_logger->thread, NULL);
-	free(db_logger);
-    }
+    enqueue(db_logger, &smp, NULL); // send "EOF" message.
+    pthread_join(db_logger->thread, NULL);
+    free(db_logger);
 }
