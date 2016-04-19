@@ -95,7 +95,6 @@ int cc_termios(cc_ctx_t *ctx)
     struct sigaction sa;
 
     if ((ctx->logger = logger_new(ctx->db_conn))) {
-	log_msg("port open");
 	memset(&sa, 0, sizeof sa);
 	sa.sa_handler = exit_handler;
 	if (sigaction(SIGTERM, &sa, NULL) == 0) {
