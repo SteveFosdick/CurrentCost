@@ -12,7 +12,7 @@
 #include <unistd.h>
 
 #define BUF_SIZE   100
-#define INTERVAL   4
+#define INTERVAL   5
 
 struct _cc_ctx {
     logger_t       *logger;
