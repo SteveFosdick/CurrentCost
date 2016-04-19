@@ -67,7 +67,7 @@ static int main_loop(cc_ctx_t *ctx) {
     return status;
 }
 
-static int child_proc(cc_ctx_t *ctx)
+static int ftdi_main(cc_ctx_t *ctx)
 {
     int status, res;
     struct sched_param sp;
@@ -112,7 +112,7 @@ int cc_ftdi(cc_ctx_t *ctx) {
 	sa.sa_handler = exit_handler;
 	if (sigaction(SIGTERM, &sa, NULL) == 0) {
 	    if (sigaction(SIGINT, &sa, NULL) == 0)
-		status = cc_daemon_fork(pid_file, child_proc, ctx);
+		status = ftdi_main(ctx);
 	    else {
 		log_syserr("unable to set handler for SIGINT");
 		status = 12;
@@ -167,6 +167,6 @@ int main(int argc, char **argv)
             ("Usage: cc-ftdi [ -d dir ] [ -D <db-conn> ] [ -i interface ] [ -p product-id ] [ -v vendor-id ]\n",
              stderr);
     else
-        status = cc_daemon_main(dir, log_file, cc_ftdi, &ctx);
+        status = cc_daemon(dir, log_file, pid_file, cc_ftdi, &ctx);
     return status;
 }

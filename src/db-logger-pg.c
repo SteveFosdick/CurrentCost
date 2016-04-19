@@ -69,10 +69,17 @@ static void log_db_err(PGconn *conn, const char *msg, ...) {
     }
 }
 
-static ExecStatusType prepare_statements(PGconn *conn) {
+static ExecStatusType db_setup(PGconn *conn) {
     PGresult *res;
     ExecStatusType code;
 
+    if (PQstatus(conn) != CONNECTION_OK) {
+	log_db_err(conn, "problem with database connection");
+	do {
+	    sleep(RETRY_WAIT);
+	    PQreset(conn);
+	} while (PQstatus(conn) != CONNECTION_OK);
+    }
     if ((res = PQexec(conn, "SET TIME ZONE UTC"))) {
 	if ((code = PQresultStatus(res)) == PGRES_COMMAND_OK) {
 	    PQclear(res);
@@ -82,6 +89,7 @@ static ExecStatusType prepare_statements(PGconn *conn) {
 		    if ((res = PQprepare(conn, "pulse", pulse_sql, 0, NULL))) {
 			if ((code = PQresultStatus(res)) == PGRES_COMMAND_OK) {
 			    PQclear(res);
+			    log_msg("database ready");
 			    return code;
 			} else {
 			    log_db_err(conn, "error preparing pulse SQL");
@@ -113,12 +121,7 @@ static ExecStatusType prepare_statements(PGconn *conn) {
 static void retry_exec(db_logger_t *db_logger, sample_t *smp) {
     PGresult *res;
 
-    while (PQstatus(db_logger->conn) != CONNECTION_OK) {
-	sleep(RETRY_WAIT);
-	PQreset(db_logger->conn);
-    }
-    log_msg("reconnected to database");
-    if (prepare_statements(db_logger->conn) == PGRES_COMMAND_OK) {
+    if (db_setup(db_logger->conn) == PGRES_COMMAND_OK) {
 	res = PQexecPrepared(db_logger->conn, smp->ptr.stmt, NUM_COLS,
 			     smp->values, smp->lengths, NULL, 0);
 	if (res) {
@@ -171,19 +174,21 @@ static void *db_thread(void *ptr) {
     db_logger_t *db_logger = ptr;
     sample_t *smp;
 
-    for (;;) {
-	pthread_mutex_lock(&db_logger->lock);
-	while (db_logger->head == NULL)
-	    pthread_cond_wait(&db_logger->wait_data, &db_logger->lock);
-	smp = db_logger->head;
-	db_logger->head = smp->next;
-	if (smp->next == NULL)
-	    db_logger->tail = NULL;
-	pthread_mutex_unlock(&db_logger->lock);
-	if (smp->ptr.stmt == NULL)
-	    break;
-	db_exec(db_logger, smp);
-	free(smp);
+    if (db_setup(db_logger->conn) == PGRES_COMMAND_OK) {
+	for (;;) {
+	    pthread_mutex_lock(&db_logger->lock);
+	    while (db_logger->head == NULL)
+		pthread_cond_wait(&db_logger->wait_data, &db_logger->lock);
+	    smp = db_logger->head;
+	    db_logger->head = smp->next;
+	    if (smp->next == NULL)
+		db_logger->tail = NULL;
+	    pthread_mutex_unlock(&db_logger->lock);
+	    if (smp->ptr.stmt == NULL)
+		break;
+	    db_exec(db_logger, smp);
+	    free(smp);
+	}
     }
     PQfinish(db_logger->conn);
     return NULL;
@@ -309,27 +314,23 @@ extern void db_logger_line(db_logger_t *db_logger, struct timeval *when,
 
 extern db_logger_t *db_logger_new(const char *db_conn) {
     db_logger_t *db_logger;
-    PGconn      *conn;
     int         res;
 
     if ((db_logger = malloc(sizeof(db_logger_t)))) {
-	if ((conn = PQconnectdb(db_conn))) {
-	    if (PQstatus(conn) == CONNECTION_OK) {
-		if (prepare_statements(conn) == PGRES_COMMAND_OK) {
-		    memset(db_logger, 0, sizeof(db_logger_t));
-		    db_logger->conn = conn;
-		    res = pthread_create(&db_logger->thread, NULL,
-					 db_thread, db_logger);
-		    if (res == 0)
+	if ((db_logger->conn = PQconnectdb(db_conn))) {
+	    db_logger->head = NULL;
+	    db_logger->tail = NULL;
+	    db_logger->last.tv_sec = 0;
+	    db_logger->last.tv_usec = 0;
+	    if ((res = pthread_mutex_init(&db_logger->lock, NULL)) == 0)
+		if ((res = pthread_cond_init(&db_logger->wait_data, NULL)) == 0)
+		    if ((res = pthread_create(&db_logger->thread, NULL, db_thread, db_logger)) == 0)
 			return db_logger;
-		    log_msg("unable to create database thread - %s",
-			    strerror(res));
-		}
-	    } else
-		log_db_err(conn, "unable to connect to database '%s'", db_conn);
-	    PQfinish(conn);
+	    log_msg("unable to create database thread - %s", strerror(res));
+	    PQfinish(db_logger->conn);
 	} else
 	    log_syserr("unable to allocate datbase connection");
+	free(db_logger);
     } else
 	log_syserr("unable to allocate db-logger");
     return NULL;
@@ -340,5 +341,7 @@ extern void db_logger_free(db_logger_t *db_logger) {
 
     enqueue(db_logger, &smp, NULL); // send "EOF" message.
     pthread_join(db_logger->thread, NULL);
+    pthread_cond_destroy(&db_logger->wait_data);
+    pthread_mutex_destroy(&db_logger->lock);
     free(db_logger);
 }
