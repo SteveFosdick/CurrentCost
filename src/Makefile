@@ -25,10 +25,10 @@ CGI_TEST_MODULES = cgi-test.o cgi-common.o cc-common.o
 cgi-test: $(CGI_TEST_MODULES)
 	$(CC) $(LDFLAGS) -o cgi-test $(CGI_TEST_MODULES)
 
-CGI_NOW_MODULES = cgi-now.o cgi-common.o parsefile.o textfile.o mapfile.o cc-common.o
+CGI_NOW_MODULES = cgi-main.o cgi-dbmain.o cgi-now.o log-db-err.o cc-common.o
 
 cc-now.cgi: $(CGI_NOW_MODULES)
-	$(CC) $(LDFLAGS) -o cc-now.cgi $(CGI_NOW_MODULES)
+	$(CC) $(LDFLAGS) -o cc-now.cgi $(CGI_NOW_MODULES) -lpq
 
 CGI_HIST_MODULES = cgi-history.o cgi-common.o history.o parsefile.o textfile.o mapfile.o cc-common.o
 
