@@ -117,11 +117,11 @@ static mf_status tstamp_search(pf_context * ctx, char *line)
 {
     mf_status status = MF_SUCCESS;
     time_t ts_secs;
-    char *ptr, *end;
+    char *ptr, *end, ch;
 
     if ((ptr = strstr(line, "<host-tstamp>"))) {
         ts_secs = strtoul(ptr + 13, &end, 10);
-        if (*end == '<') {
+        if ((ch = *end) == '<' || ch == '.') {
             if ((status = ctx->filter_cb(ctx, ts_secs)) == MF_SUCCESS)
                 status = sensor_search(ctx, end, ts_secs);
             else if (status == MF_IGNORE)

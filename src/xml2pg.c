@@ -35,7 +35,7 @@ static char *parse_int(const char *pat, size_t min, size_t max,
 	do
 	    ch = *str_ptr++;
 	while (ch >= '0' && ch <= '9');
-	if (ch == '<') {
+	if (ch == '<' || ch =='.') {
 	    len = --str_ptr - str_start;
 	    if (len >= min && len <= max) {
 		*str_ptr = '\0';
@@ -85,9 +85,14 @@ static void xml2pg(FILE *power, FILE *pulse, FILE *in) {
     while (fgets(line, sizeof(line), in)) {
 	if ((ptr = parse_int("<host-tstamp>", 10, 11, line, &tstamp))) {
 	    this_secs = atoi(tstamp);
-	    if (this_secs <= last_secs) {
-		this_secs = last_secs;
+            this_usecs = strtol(ptr, &tail, 10);
+	    if (tail > ptr) {
+		last_secs = this_secs;
+		last_usecs = this_usecs;
+	    } else if (this_secs <= last_secs) {
+	      this_secs = last_secs;
 		this_usecs = ++last_usecs;
+		putc('.', stderr);
 	    } else {
 		last_secs = this_secs;
 		last_usecs = this_usecs = 0;
@@ -120,18 +125,21 @@ int main(int argc, char **argv) {
 		while (--argc) {
 		    file = *++argv;
 		    if ((in = fopen(file, "r"))) {
+		        fprintf(stderr, "%s\n", file);
 			xml2pg(power, pulse, in);
 			fclose(in);
 		    } else {
-			log_syserr("unable to open '%s' for reading", file);
+		        log_syserr("unable to open '%s' for reading", file);
 			status = 3;
 		    }
 		}
 	    }
+	    fclose(pulse);
 	} else {
 	    log_syserr("unable to open pulse file pulse.pg for writing");
 	    status = 2;
 	}
+	fclose(power);
     } else {
 	log_syserr("unable to open power file power.pg for writing");
 	status = 2;
