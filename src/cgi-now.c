@@ -3,6 +3,7 @@
 
 #include "cc-common.h"
 #include "cgi-dbmain.h"
+#include "log-db-err.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -40,13 +41,13 @@ static const char html_bottom[] =
 /* *INDENT-ON* */
 
 static const char sql[] =
-    "SELECT     s.label,p.watts,p.temperature"
-    "FROM       (SELECT sensor,MAX(time_stamp) AS mts"
-    "            FROM   power"
-    "            WHERE  time_stamp > (current_timestamp-interval '30s')"
-    "            GROUP BY sensor) t"
-    "INNER JOIN power p   ON p.time_stamp=t.mts AND p.sensor=t.sensor"
-    "INNER JOIN sensors s ON s.ix = p.sensor"
+    "SELECT     s.label,p.watts,p.temperature "
+    "FROM       (SELECT sensor,MAX(time_stamp) AS mts "
+    "            FROM   power "
+    "            WHERE  time_stamp > (current_timestamp-interval '30s') "
+    "            GROUP BY sensor) t "
+    "INNER JOIN power p   ON p.time_stamp=t.mts AND p.sensor=t.sensor "
+    "INNER JOIN sensors s ON s.ix = p.sensor "
     "ORDER BY s.ix";
 
 static void html_result(PGresult *res) {
@@ -66,8 +67,11 @@ static void html_result(PGresult *res) {
 }
 
 int cgi_db_main(cgi_query_t *query, PGconn *conn) {
-    int      status;
-    PGresult *res;
+    int       status;
+    PGresult  *res;
+    time_t    now;
+    struct tm *tp;
+    char      tmstr[25];
 
     if ((res = PQexec(conn, sql))) {
 	if (PQresultStatus(res) == PGRES_TUPLES_OK) {
@@ -76,13 +80,14 @@ int cgi_db_main(cgi_query_t *query, PGconn *conn) {
 	    printf(html_middle, base_url);
 	    html_result(res);
 	    PQclear(res);
-	    tp = localtime(&l->timestamp);
+	    time(&now);
+	    tp = localtime(&now);
 	    strftime(tmstr, sizeof tmstr, "%d/%m/%Y&nbsp;%H:%M:%S", tp);
-	    printf(html_bottom, l->temp, tmstr, base_url);
+	    printf(html_bottom, tmstr, base_url);
 	    send_html_tail(stdout);
 	    status = 0;
 	} else {
-	    log_db_err("query failed");
+	    log_db_err(conn, "query failed");
 	    status = 4;
 	}
     } else {
