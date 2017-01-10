@@ -1,5 +1,4 @@
 #include "cgi-main.h"
-#include "cc-common.h"
 #include "history.h"
 #include "parsefile.h"
 

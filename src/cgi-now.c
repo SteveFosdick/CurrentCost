@@ -1,7 +1,6 @@
 #define _XOPEN_SOURCE
 #include <time.h>
 
-#include "cc-common.h"
 #include "cc-html.h"
 #include "cgi-dbmain.h"
 #include "log-db-err.h"

@@ -60,26 +60,24 @@ XML2SQLITE_MODULES = xml2sqlite.o parsefile.o textfile.o mapfile.o cc-common.o
 xml2sqlite: $(XML2SQLITE_MODULES)
 	$(CC) $(LDFLAGS) -o xml2sqlite $(XML2SQLITE_MODULES) -lsqlite3
 
-cc-common.o:  cc-common.h
+cc-common.o:  cc-defs.h cc-common.h
 cc-ftdi.o:  cc-common.h daemon.h logger.h
 cc-termios.o:  cc-common.h daemon.h logger.h
-cgi-common.o:  cc-common.h cgi-common.h
-cgi-history.o:  cc-common.h cgi-common.h history.h
-cgi-now.o:  cc-common.h cgi-common.h parsefile.h textfile.h
-cgi-picker.o:  cc-common.h cgi-common.h
-cgi-test.o:  cgi-common.h
+cgi-history.o:  cgi-main.h cc-html.h cc-rusage.h history.h
+cgi-now.o:  cgi-main.h cc-html.h parsefile.h textfile.h
+cgi-picker.o:  cgi-main.h cc-html.h
+cgi-test.o:  cgi-main.h
 daemon.o:  cc-common.h daemon.h
 db-logger-pg.o:  cc-common.h db-logger.h logger.h
 file-logger.o:  cc-common.h file-logger.h logger.h
-history.o:  cc-common.h history.h parsefile.h textfile.h
-histtest.o:  cc-common.h history.h
-logger.o:  cc-common.h db-logger.h file-logger.h logger.h
+history.o:  cgi-main.h cc-html.h history.h parsefile.h textfile.h
+logger.o:  cc-defs.h cc-common.h db-logger.h file-logger.h logger.h
 mapfile.o:  cc-common.h mapfile.h
 parsefile.o:  cc-common.h parsefile.h textfile.h
-test-db-logger.o:  cc-common.h db-logger.h logger.h
+test-db-logger.o:  cc-defs.h cc-common.h db-logger.h logger.h
 testlogger.o:  cc-common.h logger.h
 textfile.o:  textfile.h
-xml2csv.o:  cc-common.h parsefile.h textfile.h
+xml2csv.o:  cc-defs.h cc-common.h parsefile.h textfile.h
 xml2dat.o:  cc-common.h parsefile.h textfile.h
-xml2pg.o:  cc-common.h
+xml2pg.o:  cc-defs.h cc-common.h
 xml2sqlite.o:  cc-common.h parsefile.h textfile.h

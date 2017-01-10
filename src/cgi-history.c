@@ -1,4 +1,3 @@
-#include "cc-common.h"
 #include "cc-html.h"
 #include "cc-rusage.h"
 #include "history.h"
