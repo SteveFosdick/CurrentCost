@@ -2,6 +2,7 @@
 #include <time.h>
 
 #include "cc-common.h"
+#include "cc-html.h"
 #include "cgi-dbmain.h"
 #include "log-db-err.h"
 
@@ -56,17 +57,17 @@ static void html_result(PGresult *res) {
     rows = PQntuples(res);
     cols = PQnfields(res);
     for (r = 0; r < rows; r++) {
-	fputs("<tr>\n", stdout);
+	cgi_out_str("<tr>\n");
 	for (c = 0; c < cols; c++) {
-	    fputs("<td>", stdout);
-	    cgi_html_esc_out(PQgetvalue(res, r, c), stdout);
-	    fputs("</td>", stdout);
+	    cgi_out_str("<td>");
+	    cgi_out_htmlesc(PQgetvalue(res, r, c));
+	    cgi_out_str("</td>");
 	}
-	fputs("</tr>\n", stdout);
+	cgi_out_str("</tr>\n");
     }
 }
 
-int cgi_db_main(cgi_query_t *query, PGconn *conn) {
+int cgi_db_main(struct timespec *start, cgi_query_t *query, PGconn *conn) {
     int       status;
     PGresult  *res;
     time_t    now;
@@ -75,16 +76,16 @@ int cgi_db_main(cgi_query_t *query, PGconn *conn) {
 
     if ((res = PQexec(conn, sql))) {
 	if (PQresultStatus(res) == PGRES_TUPLES_OK) {
-	    fwrite(http_hdr, sizeof(http_hdr) - 1, 1, stdout);
-	    send_html_top(stdout);
-	    printf(html_middle, base_url);
+	    cgi_out_text(http_hdr, sizeof(http_hdr)-1);
+	    send_html_top();
+	    cgi_out_printf(html_middle, base_url);
 	    html_result(res);
 	    PQclear(res);
 	    time(&now);
 	    tp = localtime(&now);
 	    strftime(tmstr, sizeof tmstr, "%d/%m/%Y&nbsp;%H:%M:%S", tp);
-	    printf(html_bottom, tmstr, base_url);
-	    send_html_tail(stdout);
+	    cgi_out_printf(html_bottom, tmstr, base_url);
+	    send_html_tail();
 	    status = 0;
 	} else {
 	    log_db_err(conn, "query failed");

@@ -3,6 +3,7 @@
 
 extern const char default_dir[];
 extern const char xml_file[];
+extern const char date_iso[];
 extern const char base_url[];
 extern const char *sensor_names[];
 

@@ -1,5 +1,5 @@
-#include "cc-common.h"
-#include "cgi-common.h"
+#include "cgi-main.h"
+#include "cc-html.h"
 
 #include <stdlib.h>
 #include <time.h>
@@ -60,7 +60,7 @@ static void send_calendar(time_t start_secs, struct tm *tp)
 
     secs = start_secs;
     strftime(caption, sizeof caption, "%B %Y", tp);
-    printf(cal_top, caption);
+    cgi_out_printf(cal_top, caption);
     home_month = tp->tm_mon;
     tp->tm_mday = 1;
     secs = mktime(tp);
@@ -69,26 +69,26 @@ static void send_calendar(time_t start_secs, struct tm *tp)
         tp = localtime(&secs);
     }
     do {
-        fputs("<tr>\n", stdout);
+        cgi_out_str("<tr>\n");
         for (i = 0; i < 7; i++) {
             if (secs == start_secs)
-                printf("<td>%d</td>\n", tp->tm_mday);
+                cgi_out_printf("<td>%d</td>\n", tp->tm_mday);
             else
-                printf
+                cgi_out_printf
                     ("<td><a href=\"%scc-picker.cgi?start=%lu\">%2d</a></td>\n",
                      base_url, secs, tp->tm_mday);
             secs += 86400;
             tp = localtime(&secs);
         }
-        fputs("</tr>\n", stdout);
+        cgi_out_str("</tr>\n");
     } while (tp->tm_mon == home_month);
-    fwrite(tab_tail, sizeof(tab_tail) - 1, 1, stdout);
+    cgi_out_text(tab_tail, sizeof(tab_tail)-1);
 }
 
 static void send_hist_link(time_t start, time_t end, const char *desc)
 {
-    printf("<a href=\"%scc-history.cgi?start=%lu&end=%lu\">%s</a>\n",
-           base_url, start, end, desc);
+    cgi_out_printf("<a href=\"%scc-history.cgi?start=%lu&end=%lu\">%s</a>\n",
+		   base_url, start, end, desc);
 }
 
 static void send_middle_links(time_t midnight, struct tm *start_tp)
@@ -96,7 +96,7 @@ static void send_middle_links(time_t midnight, struct tm *start_tp)
     time_t start, end;
     struct tm *tp;
 
-    fputs("    <p>\n", stdout);
+    cgi_out_str("    <p>\n");
     start = midnight - 3600;
     end = midnight + 8 * 3600;
     send_hist_link(start, end, "Night");
@@ -110,7 +110,7 @@ static void send_middle_links(time_t midnight, struct tm *start_tp)
     end = midnight + 23 * 3600;
     send_hist_link(start, end, "Evening");
 
-    fwrite(new_para, sizeof(new_para) - 1, 1, stdout);
+    cgi_out_text(new_para, sizeof(new_para)-1);
 
     end = midnight + 86400;
     send_hist_link(midnight, end, "Whole Day");
@@ -137,7 +137,7 @@ static void send_middle_links(time_t midnight, struct tm *start_tp)
     } while (tp->tm_mday != 1);
     end -= 86400;
     send_hist_link(start, end, "Whole Month");
-    fputs("    </p>\n", stdout);
+    cgi_out_str("    </p>\n");
 }
 
 static void send_hour_links(time_t secs)
@@ -145,12 +145,12 @@ static void send_hour_links(time_t secs)
     int i, j, hour, flag;
     const char *mins = "00";
 
-    fwrite(tab_top, sizeof(tab_top) - 1, 1, stdout);
+    cgi_out_text(tab_top, sizeof(tab_top)-1);
     hour = flag = 0;
     for (i = 0; i < 8; i++) {
-        fputs("<tr>\n", stdout);
+        cgi_out_str("<tr>\n");
         for (j = 0; j < 6; j++) {
-            printf
+            cgi_out_printf
                 ("<td><a href=\"%scc-history.cgi?start=%lu&end=%lu\">%02d:%s</a></td>\n",
                  base_url, secs, secs + 3600, hour, mins);
             secs += 1800;
@@ -163,41 +163,35 @@ static void send_hour_links(time_t secs)
                 flag = 1;
             }
         }
-        fputs("</tr>\n", stdout);
+        cgi_out_str("</tr>\n");
     }
 }
 
-int main(int argc, char **argv)
-{
-    int status = 1;
-    cgi_query_t *q;
+int cgi_main(struct timespec *start, cgi_query_t *query) {
     const char *start_str;
     time_t start_secs, midnight;
     struct tm start_tm;
     char tmstr[20];
 
-    if ((q = cgi_get_query())) {
-        status = 0;
-        if ((start_str = cgi_get_param(q, "start")))
-            start_secs = strtoul(start_str, NULL, 10);
-        else
-            time(&start_secs);
-        localtime_r(&start_secs, &start_tm);
-        start_tm.tm_hour = 0;   /* midnight */
-        start_tm.tm_min = 0;
-        start_tm.tm_sec = 0;
-        midnight = mktime(&start_tm);
-        strftime(tmstr, sizeof tmstr, date_iso, localtime(&midnight));
-        log_msg("midnight is %s", tmstr);
+    if ((start_str = cgi_get_param(query, "start")))
+	start_secs = strtoul(start_str, NULL, 10);
+    else
+	time(&start_secs);
+    localtime_r(&start_secs, &start_tm);
+    start_tm.tm_hour = 0;   /* midnight */
+    start_tm.tm_min = 0;
+    start_tm.tm_sec = 0;
+    midnight = mktime(&start_tm);
+    strftime(tmstr, sizeof tmstr, date_iso, localtime(&midnight));
+    log_msg("midnight is %s", tmstr);
 
-        fwrite(http_hdr, sizeof(http_hdr) - 1, 1, stdout);
-        send_html_top(stdout);
-        printf(html_middle, base_url);
-        send_calendar(midnight, &start_tm);
-        send_middle_links(midnight, &start_tm);
-        send_hour_links(midnight);
-        printf(tab_end, base_url);
-        send_html_tail(stdout);
-    }
-    return status;
+    cgi_out_text(http_hdr, sizeof(http_hdr)-1);
+    send_html_top();
+    cgi_out_printf(html_middle, base_url);
+    send_calendar(midnight, &start_tm);
+    send_middle_links(midnight, &start_tm);
+    send_hour_links(midnight);
+    cgi_out_printf(tab_end, base_url);
+    send_html_tail();
+    return 0;
 }

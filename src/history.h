@@ -1,6 +1,8 @@
 #ifndef HISTORY_H
 #define HISTORY_H
 
+#include "cc-defs.h"
+
 #include <stdio.h>
 #include <time.h>
 
@@ -36,9 +38,9 @@ typedef enum {
 extern hist_context *hist_get(time_t from, time_t to, int step);
 extern void hist_free(hist_context * ctx);
 
-extern void hist_js_temp_out(hist_context * ctx, FILE * ofp);
-extern void hist_js_sens_out(hist_context * ctx, FILE * ofp, int sensor);
-extern void hist_js_total_out(hist_context * ctx, FILE * ofp);
-extern void hist_js_others_out(hist_context * ctx, FILE * ofp);
+extern void hist_js_temp_out(hist_context * ctx);
+extern void hist_js_sens_out(hist_context * ctx, int sensor);
+extern void hist_js_total_out(hist_context * ctx);
+extern void hist_js_others_out(hist_context * ctx);
 
 #endif

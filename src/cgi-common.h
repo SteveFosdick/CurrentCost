@@ -23,4 +23,7 @@ char *cgi_urldec(char *dest, const char *src);
 extern cgi_query_t *cgi_get_query(void);
 extern char *cgi_get_param(cgi_query_t * query, const char *name);
 
+extern void cgi_out(const char *data, size_t size);
+extern void cgi_htmlesc(const char *data);
+
 #endif

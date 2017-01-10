@@ -5,6 +5,6 @@
 
 #include <libpq-fe.h>
 
-extern int cgi_db_main(cgi_query_t *query, PGconn *dbconn);
+extern int cgi_db_main(struct timespec *start, cgi_query_t *query, PGconn *dbconn);
 
 #endif

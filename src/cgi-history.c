@@ -1,6 +1,8 @@
 #include "cc-common.h"
+#include "cc-html.h"
+#include "cc-rusage.h"
 #include "history.h"
-#include "cgi-common.h"
+#include "cgi-main.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -65,20 +67,19 @@ static void send_labels(time_t start, time_t end, time_t delta, time_t step)
         label_fmt = "%d";
     }
     label = start;
-    fputs("g.labels=", stdout);
+    cgi_out_str("g.labels=");
     ch = '{';
     while (label <= end) {
         strftime(tmstr, sizeof tmstr, label_fmt, localtime(&label));
-        printf("%c%ld:'%s'", ch, (long) ((label - start) / step), tmstr);
+        cgi_out_printf("%c%ld:'%s'", ch, (long) ((label - start) / step), tmstr);
         ch = ',';
         label += label_step;
     }
 }
 
-static void send_hist_link(time_t start, time_t end, const char *desc)
-{
-    printf("<a href=\"%scc-history.cgi?start=%lu&end=%lu\">%s</a>&nbsp;\n",
-           base_url, start, end, desc);
+static void send_hist_link(time_t start, time_t end, const char *desc) {
+    cgi_out_printf("<a href=\"%scc-history.cgi?start=%lu&end=%lu\">%s</a>&nbsp;\n",
+		   base_url, start, end, desc);
 }
 
 static void send_navlinks(time_t start, time_t end, time_t delta)
@@ -86,19 +87,19 @@ static void send_navlinks(time_t start, time_t end, time_t delta)
     time_t half = delta / 2;
     time_t qtr = delta / 4;
 
-    fputs("    <p>\n", stdout);
+    cgi_out_str("    <p>\n");
     send_hist_link(start - delta, end - delta, "<<");
     send_hist_link(start - half, end - half, "<");
     send_hist_link(start + qtr, end - qtr, "+");
     send_hist_link(start - qtr, end + qtr, "-");
     send_hist_link(start + half, end + half, ">");
     send_hist_link(start + delta, end + delta, ">>");
-    printf("<a href=\"%scc-now.cgi\">Current Consumption</a>\n", base_url);
-    printf("<a href=\"%scc-picker.cgi\">Browse History</a>\n", base_url);
-    fputs("    </p>\n", stdout);
+    cgi_out_printf("<a href=\"%scc-now.cgi\">Current Consumption</a>\n", base_url);
+    cgi_out_printf("<a href=\"%scc-picker.cgi\">Browse History</a>\n", base_url);
+    cgi_out_str("    </p>\n");
 }
 
-static int cgi_history(time_t start, time_t end)
+static int cgi_history(struct timespec *prog_start, time_t start, time_t end)
 {
     int status, i;
     time_t delta, step;
@@ -115,29 +116,30 @@ static int cgi_history(time_t start, time_t end)
         log_msg("from %s to %s", tm_from, tm_to);
         if ((hc = hist_get(start, end, step))) {
             status = 0;
-            fwrite(http_hdr, sizeof(http_hdr) - 1, 1, stdout);
-            send_html_top(stdout);
-            printf(html_middle, tm_from, tm_to);
+            cgi_out_text(http_hdr, sizeof(http_hdr)-1);
+            send_html_top();
+            cgi_out_printf(html_middle, tm_from, tm_to);
             send_navlinks(start, end, delta);
-            printf(graph_head, tm_from, tm_to);
+            cgi_out_printf(graph_head, tm_from, tm_to);
             for (i = 0; i < MAX_SENSOR; i++) {
                 if (hc->flags[i]) {
-                    printf("g.data(\"%s\", ", sensor_names[i]);
-                    hist_js_sens_out(hc, stdout, i);
-                    fputs(");\n", stdout);
+                    cgi_out_printf("g.data(\"%s\", ", sensor_names[i]);
+                    hist_js_sens_out(hc, i);
+                    cgi_out_str(");\n");
                 }
             }
-            fputs("g.data(\"Total Consumption\", ", stdout);
-            hist_js_total_out(hc, stdout);
-            fputs(");\n", stdout);
-            fputs("g.data(\"Others\", ", stdout);
-            hist_js_others_out(hc, stdout);
-            fputs(");\n", stdout);
+            cgi_out_str("g.data(\"Total Consumption\", ");
+            hist_js_total_out(hc);
+            cgi_out_str(");\n");
+            cgi_out_str("g.data(\"Others\", ");
+            hist_js_others_out(hc);
+            cgi_out_str(");\n");
             send_labels(start, end, delta, step);
             hist_free(hc);
-            fwrite(graph_end, sizeof(graph_end) - 1, 1, stdout);
+            cgi_out_text(graph_end, sizeof(graph_end)-1);
             send_navlinks(start, end, delta);
-            send_html_tail(stdout);
+	    cc_rusage(prog_start);
+            send_html_tail();
         } else
             status = 3;
     } else {
@@ -157,33 +159,27 @@ static time_t parse_limit(const char *value, time_t now)
     return n;
 }
 
-int main(int argc, char **argv)
-{
-    int status = 2;
-    cgi_query_t *q;
+int cgi_main(struct timespec *start, cgi_query_t *query) {
+    int status = 0;
     const char *start_str, *end_str;
-    time_t now, start_secs, end_secs;
+    time_t start_secs, end_secs;
 
-    if ((q = cgi_get_query())) {
-        status = 0;
-        if ((start_str = cgi_get_param(q, "start")) == NULL) {
-            log_msg("missing 'start' parameter");
-            status = 1;
-        }
-        if ((end_str = cgi_get_param(q, "end")) == NULL) {
-            log_msg("missing 'end' parameter");
-            status = 1;
-        }
-        if (status == 0) {
-            time(&now);
-            start_secs = parse_limit(start_str, now);
-            end_secs = parse_limit(end_str, now);
-            if (end_secs <= start_secs) {
-                log_msg("end must be greater than start");
-                status = 1;
-            } else
-                status = cgi_history(start_secs, end_secs);
-        }
+    if ((start_str = cgi_get_param(query, "start")) == NULL) {
+	log_msg("missing 'start' parameter");
+	status = 1;
+    }
+    if ((end_str = cgi_get_param(query, "end")) == NULL) {
+	log_msg("missing 'end' parameter");
+	status = 1;
+    }
+    if (status == 0) {
+	start_secs = parse_limit(start_str, start->tv_sec);
+	end_secs = parse_limit(end_str, start->tv_sec);
+	if (end_secs <= start_secs) {
+	    log_msg("end must be greater than start");
+	    status = 1;
+	} else
+	    status = cgi_history(start, start_secs, end_secs);
     }
     return status;
 }

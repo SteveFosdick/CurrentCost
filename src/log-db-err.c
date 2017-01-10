@@ -1,6 +1,7 @@
 #include "cc-common.h"
 #include "log-db-err.h"
 
+#include <stdarg.h>
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>

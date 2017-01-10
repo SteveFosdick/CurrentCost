@@ -1,3 +1,4 @@
+#include "cgi-main.h"
 #include "cc-common.h"
 #include "history.h"
 #include "parsefile.h"
@@ -189,7 +190,7 @@ void hist_free(hist_context * ctx)
     free(ctx);
 }
 
-void hist_js_temp_out(hist_context * ctx, FILE * ofp)
+void hist_js_temp_out(hist_context * ctx)
 {
     hist_point *point;
     double cur_value = 0.0, new_value;
@@ -198,13 +199,13 @@ void hist_js_temp_out(hist_context * ctx, FILE * ofp)
     for (point = ctx->data; point < ctx->end; point++) {
         if ((new_value = point->temp_mean) >= 0)
             cur_value = new_value;
-        fprintf(ofp, "%c%.3g", ch, cur_value);
+        cgi_out_printf("%c%.3g", ch, cur_value);
         ch = ',';
     }
-    putc(']', ofp);
+    cgi_out_ch(']');
 }
 
-void hist_js_sens_out(hist_context * ctx, FILE * ofp, int sensor)
+void hist_js_sens_out(hist_context * ctx, int sensor)
 {
     hist_point *point;
     double cur_value = 0.0, new_value;
@@ -216,15 +217,15 @@ void hist_js_sens_out(hist_context * ctx, FILE * ofp, int sensor)
             for (point = ctx->data; point < ctx->end; point++) {
                 if ((new_value = point->sensors[sensor].mean) >= 0)
                     cur_value = new_value;
-                fprintf(ofp, "%c%g", ch, cur_value);
+                cgi_out_printf("%c%g", ch, cur_value);
                 ch = ',';
             }
-            putc(']', ofp);
+            cgi_out_ch(']');
         }
     }
 }
 
-void hist_js_total_out(hist_context * ctx, FILE * ofp)
+void hist_js_total_out(hist_context * ctx)
 {
     hist_point *point;
     double cur_value = 0.0, new_value;
@@ -233,13 +234,13 @@ void hist_js_total_out(hist_context * ctx, FILE * ofp)
     for (point = ctx->data; point < ctx->end; point++) {
         if ((new_value = point->total) >= 0)
             cur_value = new_value;
-        fprintf(ofp, "%c%.3g", ch, cur_value);
+        cgi_out_printf("%c%.3g", ch, cur_value);
         ch = ',';
     }
-    putc(']', ofp);
+    cgi_out_ch(']');
 }
 
-void hist_js_others_out(hist_context * ctx, FILE * ofp)
+void hist_js_others_out(hist_context * ctx)
 {
     hist_point *point;
     double cur_value = 0.0, new_value;
@@ -248,8 +249,8 @@ void hist_js_others_out(hist_context * ctx, FILE * ofp)
     for (point = ctx->data; point < ctx->end; point++) {
         if ((new_value = point->others) >= 0)
             cur_value = new_value;
-        fprintf(ofp, "%c%.3g", ch, cur_value);
+        cgi_out_printf("%c%.3g", ch, cur_value);
         ch = ',';
     }
-    putc(']', ofp);
+    cgi_out_ch(']');
 }

@@ -20,22 +20,22 @@ XML2CSV_MODULES = xml2csv.o parsefile.o textfile.o mapfile.o cc-common.o
 xml2csv: $(XML2CSV_MODULES)
 	$(CC) $(LDFLAGS) -o xml2csv $(XML2CSV_MODULES)
 
-CGI_TEST_MODULES = cgi-test.o cgi-common.o cc-common.o
+CGI_TEST_MODULES = cgi-main.o cgi-test.o
 
 cgi-test: $(CGI_TEST_MODULES)
 	$(CC) $(LDFLAGS) -o cgi-test $(CGI_TEST_MODULES)
 
-CGI_NOW_MODULES = cgi-main.o cgi-dbmain.o cgi-now.o log-db-err.o cc-common.o
+CGI_NOW_MODULES = cgi-main.o cgi-dbmain.o cgi-now.o log-db-err.o cc-html.o
 
 cc-now.cgi: $(CGI_NOW_MODULES)
 	$(CC) $(LDFLAGS) -o cc-now.cgi $(CGI_NOW_MODULES) -lpq
 
-CGI_HIST_MODULES = cgi-history.o cgi-common.o history.o parsefile.o textfile.o mapfile.o cc-common.o
+CGI_HIST_MODULES = cgi-main.o cgi-history.o cc-rusage.o cc-html.o history.o parsefile.o textfile.o mapfile.o
 
 cc-history.cgi: $(CGI_HIST_MODULES)
 	$(CC) $(LDFLAGS) -o cc-history.cgi $(CGI_HIST_MODULES)
 
-CGI_PICKER_MODULES = cgi-picker.o cgi-common.o cc-common.o
+CGI_PICKER_MODULES = cgi-main.o cgi-picker.o cc-html.o
 
 cc-picker.cgi: $(CGI_PICKER_MODULES)
 	$(CC) $(LDFLAGS) -o cc-picker.cgi $(CGI_PICKER_MODULES)

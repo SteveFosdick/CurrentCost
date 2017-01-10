@@ -9,6 +9,7 @@
 
 const char default_dir[] = DEFAULT_DIR;
 const char xml_file[]    = XML_FILE;
+const char date_iso[]    = DATE_ISO;
 const char base_url[]    = BASE_URL;
 
 const char *sensor_names[] = {
