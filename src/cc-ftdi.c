@@ -28,7 +28,6 @@ const char prog_name[] = "cc-ftdi";
 
 static const char log_file[] = "cc-ftdi.log";
 static const char pid_file[] = "cc-ftdi.pid";
-static const char dev_null[] = "/dev/null";
 
 #define DEFAULT_VENDOR_ID  0x0403
 #define DEFAULT_PRODUCT_ID 0x6001
