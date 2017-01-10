@@ -1,6 +1,7 @@
 #ifndef PARSEFILE_H
 #define PARSEFILE_H
 
+#include "cc-defs.h"
 #include "textfile.h"
 
 #include <regex.h>

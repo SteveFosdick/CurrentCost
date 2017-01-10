@@ -1,3 +1,4 @@
+#include "cc-defs.h"
 #include "cc-common.h"
 
 #include <errno.h>
@@ -6,13 +7,10 @@
 #include <time.h>
 #include <sys/time.h>
 
-#ifndef DEFAULT_DIR
-#define DEFAULT_DIR "/share/fozzy/Data/CurrentCost"
-#endif
-
 const char default_dir[] = DEFAULT_DIR;
-const char xml_file[] = "cc-%Y-%m-%d.xml";
-const char date_iso[] = "%Y-%m-%dT%H:%M:%SZ";
+const char xml_file[]    = XML_FILE;
+const char date_iso[]    = DATE_ISO;
+
 const char log_hdr1[] = "%d/%m/%Y %H:%M:%S";
 const char log_hdr2[] = "%s.%03d %s: ";
 
