@@ -1,3 +1,4 @@
+#include "cc-defs.h"
 #include "cc-common.h"
 #include "logger.h"
 #include "file-logger.h"

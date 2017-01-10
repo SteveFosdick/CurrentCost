@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #include <libpq-fe.h>
+#include <stdarg.h>
 
 #define NUM_COLS  5
 #define MAX_DATA  (NUM_COLS * 20)
