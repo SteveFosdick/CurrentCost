@@ -1,15 +1,41 @@
 #define _XOPEN_SOURCE
 #include <time.h>
 
+#include "cgi-main.h"
 #include "cc-html.h"
-#include "cgi-dbmain.h"
-#include "log-db-err.h"
+#include "parsefile.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
 const char prog_name[] = "cc-now";
+
+struct latest {
+    time_t timestamp;
+    double temp;
+    double watts[MAX_SENSOR];
+};
+
+static mf_status filter_cb(pf_context * ctx, time_t ts) {
+    struct latest *l = ctx->user_data;
+    if (ts < (l->timestamp - 120))
+        return MF_STOP;
+    if (l->timestamp <= 0)
+        l->timestamp = ts;
+    return MF_SUCCESS;
+}
+
+static mf_status sample_cb(pf_context * ctx, pf_sample * smp) {
+    struct latest *l = ctx->user_data;
+
+    if (l->temp < 0)
+        l->temp = smp->temp;
+    if (smp->sensor >= 0 && smp->sensor < MAX_SENSOR)
+        if (l->watts[smp->sensor] < 0)
+            l->watts[smp->sensor] = smp->data.watts;
+    return MF_SUCCESS;
+}
 
 /* *INDENT-OFF* */
 static const char http_hdr[] =
@@ -28,71 +54,94 @@ static const char html_middle[] =
     "        <tr>\n"
     "          <th>Sensor</th>\n"
     "          <th>Consumption</th>\n"
-    "          <th>Temperature</th>\n"
     "        </tr>\n"
     "      </thead>\n"
     "      <tbody>\n";
 
 static const char html_bottom[] =
+    "        <tr>\n"
+    "          <td>Temperature</td>\n"
+    "          <td>%g</td>\n"
+    "        </tr>\n"
     "      </tbody>\n"
     "    </table>\n"
     "    <p>%s</p>\n"
     "    <p><a href=\"%scc-picker.cgi\">Browse Consumption History</a></p>\n";
 /* *INDENT-ON* */
 
-static const char sql[] =
-    "SELECT     s.label,p.watts,p.temperature "
-    "FROM       (SELECT sensor,MAX(time_stamp) AS mts "
-    "            FROM   power "
-    "            WHERE  time_stamp > (current_timestamp-interval '30s') "
-    "            GROUP BY sensor) t "
-    "INNER JOIN power p   ON p.time_stamp=t.mts AND p.sensor=t.sensor "
-    "INNER JOIN sensors s ON s.ix = p.sensor "
-    "ORDER BY s.ix";
+static void output_cell(double value, const char *label) {
+    const char *fmt = "<tr><td>%s</td><td>%.3g watts</td></tr>\n";
 
-static void html_result(PGresult *res) {
-    int rows, r, cols, c;
-
-    rows = PQntuples(res);
-    cols = PQnfields(res);
-    for (r = 0; r < rows; r++) {
-	cgi_out_str("<tr>\n");
-	for (c = 0; c < cols; c++) {
-	    cgi_out_str("<td>");
-	    cgi_out_htmlesc(PQgetvalue(res, r, c));
-	    cgi_out_str("</td>");
-	}
-	cgi_out_str("</tr>\n");
+    if (value >= 1000) {
+        fmt = "<tr><td>%s</td><td>%.2f Kw</td></tr>\n";
+        value /= 1000;
     }
+    cgi_out_printf(fmt, label, value);
 }
 
-int cgi_db_main(struct timespec *start, cgi_query_t *query, PGconn *conn) {
-    int       status;
-    PGresult  *res;
-    time_t    now;
+static void cgi_output(struct latest *l) {
+    int i;
+    double value, apps, total;
     struct tm *tp;
-    char      tmstr[25];
+    char tmstr[30];
 
-    if ((res = PQexec(conn, sql))) {
-	if (PQresultStatus(res) == PGRES_TUPLES_OK) {
-	    cgi_out_text(http_hdr, sizeof(http_hdr)-1);
-	    send_html_top();
-	    cgi_out_printf(html_middle, base_url);
-	    html_result(res);
-	    PQclear(res);
-	    time(&now);
-	    tp = localtime(&now);
-	    strftime(tmstr, sizeof tmstr, "%d/%m/%Y&nbsp;%H:%M:%S", tp);
-	    cgi_out_printf(html_bottom, tmstr, base_url);
-	    send_html_tail();
-	    status = 0;
-	} else {
-	    log_db_err(conn, "query failed");
-	    status = 4;
-	}
-    } else {
-	log_syserr("unable to allocate query result");
-	status = 4;
+    cgi_out_text(http_hdr, sizeof(http_hdr)-1);
+    send_html_top();
+    cgi_out_printf(html_middle, base_url);
+    apps = 0.0;
+    for (i = 0; i < MAX_SENSOR; i++) {
+        value = l->watts[i];
+        if (i >= 1 && i <= 5)
+            apps += value;
+        if (value >= 0)
+            output_cell(value, sensor_names[i]);
     }
+    if (l->watts[9] > 0)
+        total = l->watts[8] + l->watts[9];
+    else
+        total = l->watts[8] - l->watts[0];
+    if (total >= 0) {
+        output_cell(total, "Total Consumption");
+        value = total - apps;
+        if (value >= 0)
+            output_cell(value, "Others");
+    }
+    tp = localtime(&l->timestamp);
+    strftime(tmstr, sizeof tmstr, "%d/%m/%Y&nbsp;%H:%M:%S", tp);
+    cgi_out_printf(html_bottom, l->temp, tmstr, base_url);
+    send_html_tail();
+}
+
+int cgi_main(struct timespec *start, cgi_query_t *query) {
+    int status = 2;
+    time_t secs;
+    struct tm *tp;
+    char name[30];
+    pf_context *pf;
+    struct latest l;
+    int i;
+
+    if (chdir(default_dir) == 0) {
+        secs = start->tv_sec - 6;           /* may need a sample six seconds ago */
+        tp = gmtime(&secs);
+        strftime(name, sizeof(name), xml_file, tp);
+        if ((pf = pf_new())) {
+            pf->file_cb = tf_parse_cb_backward;
+            pf->filter_cb = filter_cb;
+            pf->sample_cb = sample_cb;
+            pf->user_data = &l;
+            l.timestamp = 0;
+            l.temp = -1.0;
+            for (i = 0; i < MAX_SENSOR; i++) {
+                l.watts[i] = -1.0;
+            }
+            if (pf_parse_file(pf, name) != MF_FAIL) {
+                cgi_output(&l);
+                status = 0;
+            }
+            pf_free(pf);
+        }
+    } else
+        log_syserr("unable to chdir to '%s'", default_dir);
     return status;
 }
