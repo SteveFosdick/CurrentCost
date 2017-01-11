@@ -20,7 +20,7 @@ XML2CSV_MODULES = xml2csv.o parsefile.o textfile.o mapfile.o cc-common.o
 xml2csv: $(XML2CSV_MODULES)
 	$(CC) $(LDFLAGS) -o xml2csv $(XML2CSV_MODULES)
 
-CGI_TEST_MODULES = cgi-main.o cgi-test.o
+CGI_TEST_MODULES = cgi-main.o cgi-test.o cc-html.o
 
 cgi-test: $(CGI_TEST_MODULES)
 	$(CC) $(LDFLAGS) -o cgi-test $(CGI_TEST_MODULES)
@@ -66,12 +66,13 @@ xml2sqlite: $(XML2SQLITE_MODULES)
 	$(CC) $(LDFLAGS) -o xml2sqlite $(XML2SQLITE_MODULES) -lsqlite3
 
 cc-common.o:  cc-defs.h cc-common.h
+cc-html.o: cc-defs.h cgi-main.h cc-html.h
 cc-ftdi.o:  cc-common.h daemon.h logger.h
 cc-termios.o:  cc-common.h daemon.h logger.h
 cgi-history.o:  cgi-main.h cc-html.h cc-rusage.h history.h
 cgi-now.o:  cgi-main.h cc-html.h parsefile.h textfile.h
 cgi-picker.o:  cgi-main.h cc-html.h
-cgi-test.o:  cgi-main.h
+cgi-test.o:  cgi-main.h cc-html.h
 daemon.o:  cc-common.h daemon.h
 db-logger-pg.o:  cc-common.h db-logger.h logger.h
 file-logger.o:  cc-common.h file-logger.h logger.h

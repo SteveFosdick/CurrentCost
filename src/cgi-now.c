@@ -69,50 +69,50 @@ static const char html_bottom[] =
     "    <p><a href=\"%scc-picker.cgi\">Browse Consumption History</a></p>\n";
 /* *INDENT-ON* */
 
-static void output_cell(double value, const char *label) {
+static void output_cell(double value, const char *label, FILE *cgi_str) {
     const char *fmt = "<tr><td>%s</td><td>%.3g watts</td></tr>\n";
 
     if (value >= 1000) {
         fmt = "<tr><td>%s</td><td>%.2f Kw</td></tr>\n";
         value /= 1000;
     }
-    cgi_out_printf(fmt, label, value);
+    fprintf(cgi_str, fmt, label, value);
 }
 
-static void cgi_output(struct latest *l) {
+static void cgi_output(struct latest *l, FILE *cgi_str) {
     int i;
     double value, apps, total;
     struct tm *tp;
     char tmstr[30];
 
-    cgi_out_text(http_hdr, sizeof(http_hdr)-1);
-    send_html_top();
-    cgi_out_printf(html_middle, base_url);
+    fwrite(http_hdr, sizeof(http_hdr)-1, 1, cgi_str);
+    html_send_top(cgi_str);
+    fprintf(cgi_str, html_middle, base_url);
     apps = 0.0;
     for (i = 0; i < MAX_SENSOR; i++) {
         value = l->watts[i];
         if (i >= 1 && i <= 5)
             apps += value;
         if (value >= 0)
-            output_cell(value, sensor_names[i]);
+            output_cell(value, sensor_names[i], cgi_str);
     }
     if (l->watts[9] > 0)
         total = l->watts[8] + l->watts[9];
     else
         total = l->watts[8] - l->watts[0];
     if (total >= 0) {
-        output_cell(total, "Total Consumption");
+        output_cell(total, "Total Consumption", cgi_str);
         value = total - apps;
         if (value >= 0)
-            output_cell(value, "Others");
+            output_cell(value, "Others", cgi_str);
     }
     tp = localtime(&l->timestamp);
     strftime(tmstr, sizeof tmstr, "%d/%m/%Y&nbsp;%H:%M:%S", tp);
-    cgi_out_printf(html_bottom, l->temp, tmstr, base_url);
-    send_html_tail();
+    fprintf(cgi_str, html_bottom, l->temp, tmstr, base_url);
+    html_send_tail(cgi_str);
 }
 
-int cgi_main(struct timespec *start, cgi_query_t *query) {
+int cgi_main(struct timespec *start, cgi_query_t *query, FILE *cgi_str) {
     int status = 2;
     time_t secs;
     struct tm *tp;
@@ -136,7 +136,7 @@ int cgi_main(struct timespec *start, cgi_query_t *query) {
                 l.watts[i] = -1.0;
             }
             if (pf_parse_file(pf, name) != MF_FAIL) {
-                cgi_output(&l);
+                cgi_output(&l, cgi_str);
                 status = 0;
             }
             pf_free(pf);

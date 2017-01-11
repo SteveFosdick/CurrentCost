@@ -1,4 +1,5 @@
 #include "cgi-main.h"
+#include "cc-html.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -49,7 +50,7 @@ static const char html_tail[] =
     "  </body>\n"
     "</html>\n";
 
-int cgi_main(struct timespec *start, cgi_query_t *query) {
+int cgi_main(struct timespec *start, cgi_query_t *query, FILE *cgi_str) {
     const char *fail;
     int fcount, np;
     cgi_param_t *p;
@@ -64,31 +65,31 @@ int cgi_main(struct timespec *start, cgi_query_t *query) {
 		log_msg("failure, count=%d", fcount);
 	return 1;
     } else {
-	cgi_out_text(html_head, sizeof(html_head)-1);
+	fwrite(html_head, sizeof(html_head)-1, 1, cgi_str);
 	np = query->nparam;
 	p = query->params;
 	while (np--) {
-	    cgi_out_str("<tr><td>");
-	    cgi_out_htmlesc(p->name);
-	    cgi_out_str("</td><td>");
-	    cgi_out_htmlesc(p->value);
-	    cgi_out_str("</td></tr>\n");
+	    html_puts("<tr><td>", cgi_str);
+	    html_esc(p->name, cgi_str);
+	    html_puts("</td><td>", cgi_str);
+	    html_esc(p->value, cgi_str);
+	    html_puts("</td></tr>\n", cgi_str);
 	}
-	cgi_out_text(html_mid, sizeof(html_mid)-1);
+	fwrite(html_mid, sizeof(html_mid)-1, 1, cgi_str);
 	for (env_ptr = environ; (env_entry = *env_ptr++); ) {
-	    cgi_out_str("<tr><td>");
+	    html_puts("<tr><td>", cgi_str);
 	    if ((sep = strchr(env_entry, '='))) {
 		*sep = '\0';
-		cgi_out_htmlesc(env_entry);
+		html_esc(env_entry, cgi_str);
 		*sep = '=';
-		cgi_out_str("</td><td>");
-		cgi_out_htmlesc(sep+1);
+		html_puts("</td><td>", cgi_str);
+		html_esc(sep+1, cgi_str);
 	    }
 	    else
-		cgi_out_htmlesc(env_entry);
-	    cgi_out_str("</td></tr>\n");
+		html_esc(env_entry, cgi_str);
+	    html_puts("</td></tr>\n", cgi_str);
 	}
-	cgi_out_text(html_tail, sizeof(html_tail)-1);
+	fwrite(html_tail, sizeof(html_tail)-1, 1, cgi_str);
 	return 0;
     }
 }

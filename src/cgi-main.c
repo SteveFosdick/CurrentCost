@@ -14,56 +14,23 @@
 
 #include <ctype.h>
 #include <errno.h>
-#include <obstack.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#define obstack_chunk_alloc malloc
-#define obstack_chunk_free  free
 
 static const char cgi_errhdr[] =
     "Content-Type: text/plain\n"
     "Status: 500 Internal Server Error\n"
     "\n";
 
-static const char cgi_memerr[] =
-    "Out of memory attempting to allocate an obstack chunk\n";
-
-static void obstack_alloc_failed() {
-    fwrite(cgi_memerr, sizeof(cgi_memerr)-1, 1, stderr);
-    fwrite(cgi_errhdr, sizeof(cgi_errhdr)-1, 1, stdout);
-    fwrite(cgi_memerr, sizeof(cgi_memerr)-1, 1, stdout);
-    exit(1);
-}
-
-static struct obstack log_obs;
-static struct obstack cgi_obs;
-
-struct list_item {
-    struct list_item *next;
-    size_t           size;
-    const char       *data;
-};
-
-struct list_item *out_head, *out_tail, *log_head, *log_tail;
-
-static void enlist(struct list_item **head, struct list_item **tail, char *data, size_t size) {
-    struct list_item *new_item, *ptr;
-
-    new_item = obstack_alloc(&log_obs, sizeof(struct list_item));
-    new_item->next = NULL;
-    new_item->size = size;
-    new_item->data = data;
-    if ((ptr = *tail))
-	ptr->next = new_item;
-    else
-	*head = new_item;
-    *tail = new_item;
-}
-
 const char log_hdr1[] = "%d/%m/%Y %H:%M:%S";
 const char log_hdr2[] = "%s.%03d %s: ";
+
+/* GNU stdio string streams for log and CGI output */
+
+static FILE   *log_str, *cgi_str;
+static char   *log_ptr, *cgi_ptr;
+static size_t log_size, cgi_size;
 
 static void log_begin(const char *msg, va_list ap)
 {
@@ -74,18 +41,8 @@ static void log_begin(const char *msg, va_list ap)
     clock_gettime(CLOCK_REALTIME, &ts);
     tp = localtime(&ts.tv_sec);
     strftime(stamp, sizeof stamp, log_hdr1, tp);
-    obstack_printf(&log_obs, log_hdr2, stamp, (int)(ts.tv_nsec / 1000000), prog_name);
-    obstack_vprintf(&log_obs, msg, ap);
-}
-
-static void log_end() {
-    size_t size;
-    char   *data;
-
-    size = obstack_object_size(&log_obs);
-    data = obstack_finish(&log_obs);
-    fwrite(data, size, 1, stderr);
-    enlist(&log_head, &log_tail, data, size);
+    fprintf(log_str, log_hdr2, stamp, (int)(ts.tv_nsec / 1000000), prog_name);
+    vfprintf(log_str, msg, ap);
 }
 
 void log_msg(const char *msg, ...)
@@ -95,8 +52,7 @@ void log_msg(const char *msg, ...)
     va_start(ap, msg);
     log_begin(msg, ap);
     va_end(ap);
-    obstack_1grow(&log_obs, '\n');
-    log_end();
+    putc('\n', log_str);
 }
 
 void log_syserr(const char *msg, ...)
@@ -108,15 +64,7 @@ void log_syserr(const char *msg, ...)
     va_start(ap, msg);
     log_begin(msg, ap);
     va_end(ap);
-    obstack_printf(&log_obs, ": %s\n", syserr);
-    log_end();
-}
-
-static void send_output(struct list_item *list) {
-    while (list) {
-	fwrite(list->data, list->size, 1, stdout);
-	list = list->next;
-    }
+    fprintf(log_str, ": %s\n", syserr);
 }
 
 char *cgi_urldec(char *dest, const char *src)
@@ -153,15 +101,16 @@ char *cgi_urldec(char *dest, const char *src)
     return eqs;
 }
 
-static void split_fields(char *data, cgi_query_t *query)
+static int split_params(char *data, cgi_query_t *query)
 {
-    int nparam, ch;
+    int status, nparam, ch;
     char *ptr, *nxt, *eqs;
     cgi_param_t *pp;
 
     if (*data == '\0') {
 	query->nparam = 0;
 	query->params = NULL;
+	status = 0;
     }
     else {
 	/* count parameters */
@@ -169,31 +118,37 @@ static void split_fields(char *data, cgi_query_t *query)
 	    if (ch == '&')
 		nparam++;
 
-	query->params = obstack_alloc(&cgi_obs, nparam * sizeof(cgi_param_t));
-	/* step through fields. */
-	query->nparam = nparam;
-	pp = query->params;
-	for (ptr = data; ptr; ptr = nxt) {
-	    if ((nxt = strchr(ptr, '&')))
-		*nxt++ = '\0';
-	    if ((eqs = cgi_urldec(ptr, ptr)))
-		*eqs++ = '\0';
-	    pp->name = ptr;
-	    pp->value = eqs;
-	    pp++;
+	if ((query->params = malloc(nparam * sizeof(cgi_param_t)))) {
+	    /* step through fields. */
+	    query->nparam = nparam;
+	    pp = query->params;
+	    for (ptr = data; ptr; ptr = nxt) {
+		if ((nxt = strchr(ptr, '&')))
+		    *nxt++ = '\0';
+		if ((eqs = cgi_urldec(ptr, ptr)))
+		    *eqs++ = '\0';
+		pp->name = ptr;
+		pp->value = eqs;
+		pp++;
+	    }
+	    status = 0;
+	} else {
+	    log_syserr("unable to allocate space for CGI parameters");
+	    status = 2;
 	}
     }
+    return status;
 }
 
 static char *method_get(void)
 {
     char *data;
 
-    if ((data = getenv("QUERY_STRING")) == NULL) {
+    if ((data = getenv("QUERY_STRING")) == NULL)
         log_msg("environment variable QUERY_STRING not set");
-	return NULL;
-    }
-    return obstack_copy0(&cgi_obs, data, strlen(data));
+    else if ((data = strdup(data)) == NULL)
+	log_syserr("unable to copy query string");
+    return data;
 }
 
 static char *method_post(void)
@@ -207,8 +162,9 @@ static char *method_post(void)
     } else if ((consiz = atoi(conlen)) <= 0) {
         log_msg("environment variable CONTENT_LENGTH has an invalid value");
         data = NULL;
-    } else {
-	data = obstack_alloc(&cgi_obs, consiz + 1);
+    } else if ((data = malloc(consiz + 1)) == NULL)
+	log_msg("unable to allocate space for CGI input");
+    else {
         togo = consiz;
         ptr = data;
         while (togo > 0 && (nread = read(STDIN_FILENO, ptr, togo)) > 0) {
@@ -220,7 +176,7 @@ static char *method_post(void)
                 log_syserr("read error on stdin");
             else
                 log_msg("input form was truncated");
-            obstack_free(&cgi_obs, data);
+            free(data);
             data = NULL;
         } else
             *ptr = '\0';
@@ -236,9 +192,8 @@ int main(int argc, char **argv) {
     cgi_query_t query;
 
     clock_gettime(CLOCK_REALTIME, &start);
-    obstack_alloc_failed_handler = &obstack_alloc_failed;
-    obstack_init(&log_obs);
-    obstack_init(&cgi_obs);
+    log_str = open_memstream(&log_ptr, &log_size);
+    cgi_str = open_memstream(&cgi_ptr, &cgi_size);
 
     if ((method = getenv("REQUEST_METHOD")) == NULL) {
 	log_msg("environment variable REQUEST_METHOD not set");
@@ -253,14 +208,20 @@ int main(int argc, char **argv) {
 	data = NULL;
     }
     if (data) {
-	split_fields(data, &query);
-	status = cgi_main(&start, &query);
+	if ((status = split_params(data, &query)) == 0)
+	    status = cgi_main(&start, &query, cgi_str);
     }
-    if (status == 0)
-	send_output(out_head);
+    fflush(log_str);
+    if (log_size > 0)
+	write(2, log_ptr, log_size);
+    if (status == 0) {
+	fflush(cgi_str);
+	write(1, cgi_ptr, cgi_size);
+    }
     else {
 	fwrite(cgi_errhdr, sizeof(cgi_errhdr)-1, 1, stdout);
-	send_output(log_head);
+	fwrite(log_ptr, log_size, 1, stdout);
+	fflush(stdout);
     }
     return status;
 }
@@ -286,50 +247,17 @@ char *cgi_get_param(cgi_query_t * query, const char *name)
 }
 
 void cgi_out_text(const char *str, size_t len) {
-    char *data = obstack_copy0(&cgi_obs, str, len);
-    enlist(&out_head, &out_tail, data, len);
-}
-
-static void cgi_out_end() {
-    size_t size;
-    char   *data;
-
-    size = obstack_object_size(&cgi_obs);
-    data = obstack_finish(&cgi_obs);
-    enlist(&out_head, &out_tail, data, size);
-}
-
-void cgi_out_htmlesc(const char *str) {
-    int ch;
-
-    while ((ch = *str++)) {
-	switch(ch) {
-	case '<':
-	    obstack_grow(&cgi_obs, "&lt;", 4);
-	    break;
-	case '>':
-	    obstack_grow(&cgi_obs, "&gt;", 4);
-	    break;
-	case '&':
-	    obstack_grow(&cgi_obs, "&amp;", 5);
-	    break;
-	default:
-	    obstack_1grow(&cgi_obs, ch);
-	}
-    }
-    cgi_out_end();
+    fwrite(str, len, 1, cgi_str);
 }
 
 void cgi_out_printf(const char *fmt, ...) {
     va_list ap;
 
     va_start(ap, fmt);
-    obstack_vprintf(&cgi_obs, fmt, ap);
+    vfprintf(cgi_str, fmt, ap);
     va_end(ap);
-    cgi_out_end();
 }
 
 void cgi_out_ch(int ch) {
-    obstack_1grow(&cgi_obs, ch);
-    cgi_out_end();
+    putc(ch, cgi_str);
 }

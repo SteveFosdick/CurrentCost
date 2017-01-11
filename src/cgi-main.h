@@ -23,13 +23,6 @@ extern void log_syserr(const char *msg, ...);
 
 extern char *cgi_urldec(char *dest, const char *src);
 extern char *cgi_get_param(cgi_query_t *query, const char *name);
-extern int cgi_main(struct timespec *start, cgi_query_t *query);
-
-extern void cgi_out_text(const char *data, size_t size);
-extern void cgi_out_htmlesc(const char *data);
-extern void cgi_out_printf(const char *fmt, ...);
-extern void cgi_out_ch(int ch);
-
-#define cgi_out_str(str) { const char s[] = str; cgi_out_text(s, sizeof(s)-1); }
+extern int cgi_main(struct timespec *start, cgi_query_t *query, FILE *cgi_str);
 
 #endif

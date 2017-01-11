@@ -4,8 +4,8 @@
  * This provides common URLs, HTML and functions for the current-cost project.
  */
 
-#include "cgi-main.h"
 #include "cc-defs.h"
+#include "cc-html.h"
 
 const char default_dir[] = DEFAULT_DIR;
 const char xml_file[]    = XML_FILE;
@@ -37,8 +37,8 @@ static const char html_top[] =
     "    <meta name=\"viewport\" content=\"target-densitydpi=device-dpi\">\n";
 /* *INDENT-ON* */
 
-void send_html_top() {
-    cgi_out_text(html_top, sizeof(html_top)-1);
+void html_send_top(FILE *fp) {
+    fwrite(html_top, sizeof(html_top)-1, 1, fp);
 }
 
 /* *INDENT-OFF* */
@@ -47,6 +47,29 @@ static const char html_tail[] =
     "</html>\n";
 /* *INDENT-ON* */
 
-void send_html_tail() {
-    cgi_out_text(html_tail, sizeof(html_tail)-1);
+void html_send_tail(FILE *fp) {
+    fwrite(html_tail, sizeof(html_tail)-1, 1, fp);
+}
+
+void html_esc(const char *data, FILE *fp) {
+    int ch;
+
+    while ((ch = *data++)) {
+	switch(ch) {
+	case '<': {
+	    const char html_lt[] = "&lt;";
+	    fwrite(html_lt, sizeof(html_lt)-1, 1, fp); }
+	    break;
+	case '>': {
+	    const char html_gt[] = "&gt;";
+	    fwrite(html_gt, sizeof(html_gt)-1, 1, fp); }
+	    break;
+	case '&': {
+	    const char html_amp[] = "&amp;";
+	    fwrite(html_amp, sizeof(html_amp)-1, 1, fp); }
+	    break;
+	default:
+	    putc(ch, fp);
+	}
+    }
 }
