@@ -189,7 +189,7 @@ void hist_free(hist_context * ctx)
     free(ctx);
 }
 
-void hist_js_temp_out(hist_context * ctx)
+void hist_js_temp_out(hist_context * ctx, FILE *fp)
 {
     hist_point *point;
     double cur_value = 0.0, new_value;
@@ -198,13 +198,13 @@ void hist_js_temp_out(hist_context * ctx)
     for (point = ctx->data; point < ctx->end; point++) {
         if ((new_value = point->temp_mean) >= 0)
             cur_value = new_value;
-        cgi_out_printf("%c%.3g", ch, cur_value);
+        fprintf(fp, "%c%.3g", ch, cur_value);
         ch = ',';
     }
-    cgi_out_ch(']');
+    putc(']', fp);
 }
 
-void hist_js_sens_out(hist_context * ctx, int sensor)
+void hist_js_sens_out(hist_context * ctx, int sensor, FILE *fp)
 {
     hist_point *point;
     double cur_value = 0.0, new_value;
@@ -216,15 +216,15 @@ void hist_js_sens_out(hist_context * ctx, int sensor)
             for (point = ctx->data; point < ctx->end; point++) {
                 if ((new_value = point->sensors[sensor].mean) >= 0)
                     cur_value = new_value;
-                cgi_out_printf("%c%g", ch, cur_value);
+                fprintf(fp, "%c%g", ch, cur_value);
                 ch = ',';
             }
-            cgi_out_ch(']');
+            putc(']', fp);
         }
     }
 }
 
-void hist_js_total_out(hist_context * ctx)
+void hist_js_total_out(hist_context * ctx, FILE *fp)
 {
     hist_point *point;
     double cur_value = 0.0, new_value;
@@ -233,13 +233,13 @@ void hist_js_total_out(hist_context * ctx)
     for (point = ctx->data; point < ctx->end; point++) {
         if ((new_value = point->total) >= 0)
             cur_value = new_value;
-        cgi_out_printf("%c%.3g", ch, cur_value);
+        fprintf(fp, "%c%.3g", ch, cur_value);
         ch = ',';
     }
-    cgi_out_ch(']');
+    putc(']', fp);
 }
 
-void hist_js_others_out(hist_context * ctx)
+void hist_js_others_out(hist_context * ctx, FILE *fp)
 {
     hist_point *point;
     double cur_value = 0.0, new_value;
@@ -248,8 +248,8 @@ void hist_js_others_out(hist_context * ctx)
     for (point = ctx->data; point < ctx->end; point++) {
         if ((new_value = point->others) >= 0)
             cur_value = new_value;
-        cgi_out_printf("%c%.3g", ch, cur_value);
+        fprintf(fp, "%c%.3g", ch, cur_value);
         ch = ',';
     }
-    cgi_out_ch(']');
+    putc(']', fp);
 }

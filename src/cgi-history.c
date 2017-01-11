@@ -123,21 +123,21 @@ static int cgi_history(struct timespec *prog_start, time_t start, time_t end, FI
             for (i = 0; i < MAX_SENSOR; i++) {
                 if (hc->flags[i]) {
                     fprintf(cgi_str, "g.data(\"%s\", ", sensor_names[i]);
-                    hist_js_sens_out(hc, i);
+                    hist_js_sens_out(hc, i, cgi_str);
                     html_puts(");\n", cgi_str);
                 }
             }
             html_puts("g.data(\"Total Consumption\", ", cgi_str);
-            hist_js_total_out(hc);
+            hist_js_total_out(hc, cgi_str);
             html_puts(");\n", cgi_str);
             html_puts("g.data(\"Others\", ", cgi_str);
-            hist_js_others_out(hc);
+            hist_js_others_out(hc, cgi_str);
             html_puts(");\n", cgi_str);
             send_labels(start, end, delta, step, cgi_str);
             hist_free(hc);
             fwrite(graph_end, sizeof(graph_end)-1, 1, cgi_str);
             send_navlinks(start, end, delta, cgi_str);
-	    cc_rusage(prog_start);
+	    cc_rusage(prog_start, cgi_str);
             html_send_tail(cgi_str);
         } else
             status = 3;

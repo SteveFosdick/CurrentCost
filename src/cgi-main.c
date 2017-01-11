@@ -245,19 +245,3 @@ char *cgi_get_param(cgi_query_t * query, const char *name)
     }
     return NULL;
 }
-
-void cgi_out_text(const char *str, size_t len) {
-    fwrite(str, len, 1, cgi_str);
-}
-
-void cgi_out_printf(const char *fmt, ...) {
-    va_list ap;
-
-    va_start(ap, fmt);
-    vfprintf(cgi_str, fmt, ap);
-    va_end(ap);
-}
-
-void cgi_out_ch(int ch) {
-    putc(ch, cgi_str);
-}

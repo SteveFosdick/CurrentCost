@@ -68,6 +68,7 @@ xml2sqlite: $(XML2SQLITE_MODULES)
 cc-common.o:  cc-defs.h cc-common.h
 cc-html.o: cc-defs.h cgi-main.h cc-html.h
 cc-ftdi.o:  cc-common.h daemon.h logger.h
+cc-rusage.o: cc-rusage.h
 cc-termios.o:  cc-common.h daemon.h logger.h
 cgi-history.o:  cgi-main.h cc-html.h cc-rusage.h history.h
 cgi-now.o:  cgi-main.h cc-html.h parsefile.h textfile.h
