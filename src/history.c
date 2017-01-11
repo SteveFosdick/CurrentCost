@@ -147,10 +147,21 @@ static void crunch_data(hist_context * ctx)
             if (sens_num >= 1 && sens_num <= 5) // if applicance monitor.
                 apps += value;
         }
-        if (point->sensors[9].mean > 0)
+        if (point->sensors[9].mean > 0) {
+	    // As the import meter is showing a reading this means the total
+	    // consumption is more than the solar panels are generating so
+	    // it is sum of the solar generation meter and the import meter
+	    
             total = point->sensors[8].mean + point->sensors[9].mean;
-        else
+	}
+        else {
+	    // The import meter is at zero which means some of the energy
+	    // from the solar panels is being exported.  In this case the
+	    // consumption in the house is the solar generation meter less
+	    // the clamp sensor, which in this case is works as an export meter
+	    
             total = point->sensors[8].mean - point->sensors[0].mean;
+	}
         point->total = total;
         point->others = total - apps;
         if (point->temp_count > 0)
