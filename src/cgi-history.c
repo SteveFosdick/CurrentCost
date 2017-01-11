@@ -40,6 +40,16 @@ static const char graph_end[] =
     "};\n"
     "g.draw();\n"
     "    </script>\n";
+
+static const char form_head[] =
+    "    <form method=\"POST\">\n"
+    "      <input type=\"hidden\" name=\"start\" value=\"%ld\">\n"
+    "      <input type=\"hidden\" name=\"end\" value=\"%ld\">\n";
+
+static const char form_tail[] =
+    "     <input type=\"submit\" name=\"go\" value=\"Filter\">"
+    "   </form>\n";
+
 /* *INDENT-ON* */
 
 static void send_labels(time_t start, time_t end, time_t delta, time_t step, FILE *cgi_str)
@@ -76,30 +86,45 @@ static void send_labels(time_t start, time_t end, time_t delta, time_t step, FIL
     }
 }
 
-static void send_hist_link(time_t start, time_t end, const char *desc, FILE *cgi_str) {
-    fprintf(cgi_str, "<a href=\"%scc-history.cgi?start=%lu&end=%lu\">%s</a>&nbsp;\n",
-	    base_url, start, end, desc);
+static void send_hist_link(time_t start, time_t end, const char *desc,
+			   unsigned sens, FILE *cgi_str)
+{
+    fprintf(cgi_str, "<a href=\"%scc-history.cgi?start=%lu&end=%lu&sens=%x\">%s</a>&nbsp;\n",
+	    base_url, start, end, sens, desc);
 }
 
-static void send_navlinks(time_t start, time_t end, time_t delta, FILE *cgi_str)
+static void send_navlinks(time_t start, time_t end, time_t delta, unsigned sens, FILE *cgi_str)
 {
     time_t half = delta / 2;
     time_t qtr = delta / 4;
 
     html_puts("    <p>\n", cgi_str);
-    send_hist_link(start - delta, end - delta, "<<", cgi_str);
-    send_hist_link(start - half, end - half, "<", cgi_str);
-    send_hist_link(start + qtr, end - qtr, "+", cgi_str);
-    send_hist_link(start - qtr, end + qtr, "-", cgi_str);
-    send_hist_link(start + half, end + half, ">", cgi_str);
-    send_hist_link(start + delta, end + delta, ">>", cgi_str);
-    fprintf(cgi_str, "<a href=\"%scc-now.cgi\">Current Consumption</a>\n", base_url);
-    fprintf(cgi_str, "<a href=\"%scc-picker.cgi\">Browse History</a>\n", base_url);
+    send_hist_link(start - delta, end - delta, "<<", sens, cgi_str);
+    send_hist_link(start - half, end - half, "<", sens, cgi_str);
+    send_hist_link(start + qtr, end - qtr, "+", sens, cgi_str);
+    send_hist_link(start - qtr, end + qtr, "-", sens, cgi_str);
+    send_hist_link(start + half, end + half, ">", sens, cgi_str);
+    send_hist_link(start + delta, end + delta, ">>", sens, cgi_str);
+    fprintf(cgi_str, "<a href=\"%scc-now.cgi?sens=%x\">Current Consumption</a>\n", base_url, sens);
+    fprintf(cgi_str, "<a href=\"%scc-picker.cgi?sens=%x\">Browse History</a>\n", base_url, sens);
     html_puts("    </p>\n", cgi_str);
 }
 
+static void send_checkboxes(time_t start, time_t end, unsigned sens, FILE *cgi_str) {
+    int i;
+    const char *chk;
+    
+    fprintf(cgi_str, form_head, start, end);
+    for (i = 0; i < MAX_SENSOR; i++) {
+	chk = sens & (1 << i) ? "" : " checked";
+	fprintf(cgi_str, "<input type=\"checkbox\" name=\"s%d\" value=\"on\"%s>&nbsp;%s\n",
+		i, chk, sensor_names[i]);
+    }
+    fwrite(form_tail, sizeof(form_tail)-1, 1, cgi_str);
+}
+
 static int cgi_history(struct timespec *prog_start, time_t start, time_t end,
-		       int sens, FILE *cgi_str)
+		       unsigned sens, FILE *cgi_str)
 {
     int status, i;
     time_t delta, step;
@@ -119,10 +144,10 @@ static int cgi_history(struct timespec *prog_start, time_t start, time_t end,
             fwrite(http_hdr, sizeof(http_hdr)-1, 1, cgi_str);
             html_send_top(cgi_str);
             fprintf(cgi_str, html_middle, tm_from, tm_to);
-            send_navlinks(start, end, delta, cgi_str);
+            send_navlinks(start, end, delta, sens, cgi_str);
             fprintf(cgi_str, graph_head, tm_from, tm_to);
             for (i = 0; i < MAX_SENSOR; i++) {
-		if (sens & (1 << i)) {
+		if (!(sens & (1 << i))) {
 		    if (hc->flags[i]) {
 			fprintf(cgi_str, "g.data(\"%s\", ", sensor_names[i]);
 			hist_js_sens_out(hc, i, cgi_str);
@@ -139,7 +164,8 @@ static int cgi_history(struct timespec *prog_start, time_t start, time_t end,
             send_labels(start, end, delta, step, cgi_str);
             hist_free(hc);
             fwrite(graph_end, sizeof(graph_end)-1, 1, cgi_str);
-            send_navlinks(start, end, delta, cgi_str);
+            send_navlinks(start, end, delta, sens, cgi_str);
+	    send_checkboxes(start, end, sens, cgi_str);
 	    cc_rusage(prog_start, cgi_str);
             html_send_tail(cgi_str);
         } else
@@ -162,17 +188,20 @@ static time_t parse_limit(const char *value, time_t now)
 }
 
 static int which_sensors(cgi_query_t *query) {
-    int i, bits = 0;
+    int i;
+    unsigned bits = 0;
     char name[3], *ptr;
 
-    strcpy(name, "sx");
-    for (i = 0; i < MAX_SENSOR; i++) {
-	name[1] = '0' + i;
-	if ((ptr = cgi_get_param(query, name)) && strcmp(ptr, "on") == 0)
-	    bits |= (1 << i);
+    if ((ptr = cgi_get_param(query, "sens")))
+	bits = strtoul(ptr, NULL, 16);
+    else {
+	strcpy(name, "sx");
+	for (i = 0; i < MAX_SENSOR; i++) {
+	    name[1] = '0' + i;
+	    if ((ptr = cgi_get_param(query, name)) == NULL || strcmp(ptr, "on"))
+		bits |= (1 << i);
+	}
     }
-    if (bits == 0)
-	bits = -1;
     return bits;
 }
 
