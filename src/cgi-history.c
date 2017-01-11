@@ -98,7 +98,8 @@ static void send_navlinks(time_t start, time_t end, time_t delta, FILE *cgi_str)
     html_puts("    </p>\n", cgi_str);
 }
 
-static int cgi_history(struct timespec *prog_start, time_t start, time_t end, FILE *cgi_str)
+static int cgi_history(struct timespec *prog_start, time_t start, time_t end,
+		       int sens, FILE *cgi_str)
 {
     int status, i;
     time_t delta, step;
@@ -121,11 +122,13 @@ static int cgi_history(struct timespec *prog_start, time_t start, time_t end, FI
             send_navlinks(start, end, delta, cgi_str);
             fprintf(cgi_str, graph_head, tm_from, tm_to);
             for (i = 0; i < MAX_SENSOR; i++) {
-                if (hc->flags[i]) {
-                    fprintf(cgi_str, "g.data(\"%s\", ", sensor_names[i]);
-                    hist_js_sens_out(hc, i, cgi_str);
-                    html_puts(");\n", cgi_str);
-                }
+		if (sens & (1 << i)) {
+		    if (hc->flags[i]) {
+			fprintf(cgi_str, "g.data(\"%s\", ", sensor_names[i]);
+			hist_js_sens_out(hc, i, cgi_str);
+			html_puts(");\n", cgi_str);
+		    }
+		}
             }
             html_puts("g.data(\"Total Consumption\", ", cgi_str);
             hist_js_total_out(hc, cgi_str);
@@ -158,6 +161,21 @@ static time_t parse_limit(const char *value, time_t now)
     return n;
 }
 
+static int which_sensors(cgi_query_t *query) {
+    int i, bits = 0;
+    char name[3], *ptr;
+
+    strcpy(name, "sx");
+    for (i = 0; i < MAX_SENSOR; i++) {
+	name[1] = '0' + i;
+	if ((ptr = cgi_get_param(query, name)) && strcmp(ptr, "on") == 0)
+	    bits |= (1 << i);
+    }
+    if (bits == 0)
+	bits = -1;
+    return bits;
+}
+
 int cgi_main(struct timespec *start, cgi_query_t *query, FILE *cgi_str) {
     int status = 0;
     const char *start_str, *end_str;
@@ -178,7 +196,7 @@ int cgi_main(struct timespec *start, cgi_query_t *query, FILE *cgi_str) {
 	    log_msg("end must be greater than start");
 	    status = 1;
 	} else
-	    status = cgi_history(start, start_secs, end_secs, cgi_str);
+	    status = cgi_history(start, start_secs, end_secs, which_sensors(query), cgi_str);
     }
     return status;
 }
