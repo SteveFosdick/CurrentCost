@@ -33,8 +33,8 @@ static const char graph_head[] =
     "g.title_font_size = 16;\n"
     "g.legend_font_size = 10;\n"
     "g.title = '%s to %s';\n"
-    "g.tooltips = true;\n"
-    "g.theme_keynote();\n";
+    "g.theme_keynote();\n"
+    "g.tooltips = true;\n";
 
 static const char graph_end[] =
     "};\n"
