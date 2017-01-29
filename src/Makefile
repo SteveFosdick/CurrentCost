@@ -1,11 +1,11 @@
 all: cc-termios cc-ftdi xml2csv ascii-clean cc-now.cgi cc-history.cgi cc-picker.cgi cgi-test test-db-logger xml2pg xml2sqlite ts2unix maxlen
 
-DAEMON_MODULES = logger.o file-logger.o db-logger-pg.o daemon.o cc-common.o
+DAEMON_MODULES = logger.o daemon.o cc-common.o
 
 CC_TERMIOS_MODULES = cc-termios.o $(DAEMON_MODULES)
 
 cc-termios: $(CC_TERMIOS_MODULES)
-	$(CC) $(LDFLAGS) -o cc-termios $(CC_TERMIOS_MODULES) -lpq -lpthread
+	$(CC) $(LDFLAGS) -o cc-termios $(CC_TERMIOS_MODULES)
 
 CC_FTDI_MODULES = cc-ftdi.o $(DAEMON_MODULES)
 
@@ -13,7 +13,7 @@ cc-ftdi.o: cc-ftdi.c
 	$(CC) $(CFLAGS) $(FTDI_INC) -c $^
 
 cc-ftdi: $(CC_FTDI_MODULES)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o cc-ftdi $(CC_FTDI_MODULES) $(FTDI_LIB) -lpq -lpthread
+	$(CC) $(CFLAGS) $(LDFLAGS) -o cc-ftdi $(CC_FTDI_MODULES) $(FTDI_LIB)
 
 XML2CSV_MODULES = xml2csv.o parsefile.o textfile.o mapfile.o cc-common.o
 
