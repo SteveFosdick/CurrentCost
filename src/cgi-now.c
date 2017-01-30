@@ -40,7 +40,7 @@ static mf_status sample_cb(pf_context * ctx, pf_sample * smp) {
 
 /* *INDENT-OFF* */
 static const char http_hdr[] =
-    "Content-Type: text/html\n"
+    "Content-Type: text/html; charset=utf-8\n"
     "Refresh: 3\n";
 
 static const char html_middle[] =

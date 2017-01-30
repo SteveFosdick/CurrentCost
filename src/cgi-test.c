@@ -8,7 +8,7 @@ extern char **environ;
 const char prog_name[] = "cgi-test";
 
 static const char html_head[] =
-    "Content-Type: text/html\n"
+    "Content-Type: text/html; charset=utf-8\n"
     "\n"
     "<!DOCTYPE html>\n"
     "<html>\n"

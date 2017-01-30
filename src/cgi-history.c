@@ -16,7 +16,7 @@ const char time_fmt[] = "%d/%m/%Y %H:%M:%S";
 
 /* *INDENT-OFF* */
 static const char http_hdr[] =
-    "Content-Type: text/html\n";
+    "Content-Type: text/html; charset=utf-8\n";
 
 static const char html_middle[] =
     "    <meta name=\"viewport\" content=\"initial-scale=1\"/>\n"

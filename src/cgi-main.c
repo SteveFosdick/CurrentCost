@@ -14,6 +14,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <locale.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -194,6 +195,9 @@ int main(int argc, char **argv) {
     clock_gettime(CLOCK_REALTIME, &start);
     log_str = open_memstream(&log_ptr, &log_size);
     cgi_str = open_memstream(&cgi_ptr, &cgi_size);
+
+    if (setlocale(LC_ALL, "en_GB.utf8") == NULL)
+	log_syserr("unable to set locale to en_GB.utf8");
 
     if ((method = getenv("REQUEST_METHOD")) == NULL) {
 	log_msg("environment variable REQUEST_METHOD not set");

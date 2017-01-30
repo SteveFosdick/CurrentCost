@@ -8,7 +8,7 @@ const char prog_name[] = "cc-picker";
 
 /* *INDENT-OFF* */
 static const char http_hdr[] =
-    "Content-Type: text/html\n";
+    "Content-Type: text/html; charset=utf-8\n";
 
 static const char html_middle[] =
     "    <meta name=\"viewport\" content=\"initial-scale=2\"/>\n"
