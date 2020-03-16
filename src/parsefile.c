@@ -28,7 +28,8 @@ pf_context *pf_new(void)
             ptr++;
         }
         return ctx;
-    } else
+    }
+    else
         log_syserr("allocate parse context");
     return ctx;
 }
@@ -96,12 +97,12 @@ static mf_status sensor_search(pf_context * ctx, char *tail, time_t ts_secs)
                         smp.data.watts = strtod(ptr + 7, &end);
                         if (*end == '<')
                             status = ctx->sample_cb(ctx, &smp);
-                    } else if ((ptr = strstr(end, "<imp>"))) {
+                    }
+                    else if ((ptr = strstr(end, "<imp>"))) {
                         smp.data.pulse.count = strtoul(ptr + 5, &end, 10);
                         if (*end == '<') {
                             if ((ptr = strstr(end, "<ipu>"))) {
-                                smp.data.pulse.ipu =
-                                    strtoul(ptr + 5, NULL, 10);
+                                smp.data.pulse.ipu = strtoul(ptr + 5, NULL, 10);
                                 status = ctx->pulse_cb(ctx, &smp);
                             }
                         }
@@ -131,8 +132,7 @@ static mf_status tstamp_search(pf_context * ctx, char *line)
     return status;
 }
 
-mf_status pf_parse_line(void *user_data,
-                        const void *file_data, size_t file_size)
+mf_status pf_parse_line(void *user_data, const void *file_data, size_t file_size)
 {
 
     mf_status status = MF_SUCCESS;

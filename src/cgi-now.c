@@ -18,7 +18,8 @@ struct latest {
     double watts[MAX_SENSOR];
 };
 
-static mf_status filter_cb(pf_context * ctx, time_t ts) {
+static mf_status filter_cb(pf_context *ctx, time_t ts)
+{
     struct latest *l = ctx->user_data;
     if (ts < (l->timestamp - 120))
         return MF_STOP;
@@ -27,7 +28,8 @@ static mf_status filter_cb(pf_context * ctx, time_t ts) {
     return MF_SUCCESS;
 }
 
-static mf_status sample_cb(pf_context * ctx, pf_sample * smp) {
+static mf_status sample_cb(pf_context *ctx, pf_sample * smp)
+{
     struct latest *l = ctx->user_data;
 
     if (l->temp < 0)
@@ -70,7 +72,8 @@ static const char html_bottom[] =
     "    <p><a href=\"%scc-picker.cgi?sens=%x\">Browse Consumption History</a></p>\n";
 /* *INDENT-ON* */
 
-static void output_cell(double value, const char *label, FILE *cgi_str) {
+static void output_cell(double value, const char *label, FILE *cgi_str)
+{
     const char *fmt = "<tr><td>%s</td><td>%.3g watts</td></tr>\n";
 
     if (value >= 1000) {
@@ -80,13 +83,14 @@ static void output_cell(double value, const char *label, FILE *cgi_str) {
     fprintf(cgi_str, fmt, label, value);
 }
 
-static void cgi_output(struct latest *l, unsigned sens, FILE *cgi_str) {
+static void cgi_output(struct latest *l, unsigned sens, FILE *cgi_str)
+{
     int i;
     double value, apps, total;
     struct tm *tp;
     char tmstr[30];
 
-    fwrite(http_hdr, sizeof(http_hdr)-1, 1, cgi_str);
+    fwrite(http_hdr, sizeof(http_hdr) - 1, 1, cgi_str);
     html_send_top(cgi_str);
     fprintf(cgi_str, html_middle, base_url, sens);
     apps = 0.0;
@@ -113,7 +117,8 @@ static void cgi_output(struct latest *l, unsigned sens, FILE *cgi_str) {
     html_send_tail(cgi_str);
 }
 
-int cgi_main(struct timespec *start, cgi_query_t *query, FILE *cgi_str) {
+int cgi_main(struct timespec *start, cgi_query_t *query, FILE *cgi_str)
+{
     int status = 2;
     time_t secs;
     struct tm *tp;
@@ -122,9 +127,9 @@ int cgi_main(struct timespec *start, cgi_query_t *query, FILE *cgi_str) {
     struct latest l;
     int i;
     unsigned sens;
-    
+
     if (chdir(default_dir) == 0) {
-        secs = start->tv_sec - 6;           /* may need a sample six seconds ago */
+        secs = start->tv_sec - 6;       /* may need a sample six seconds ago */
         tp = gmtime(&secs);
         strftime(name, sizeof(name), xml_file, tp);
         if ((pf = pf_new())) {
@@ -138,15 +143,16 @@ int cgi_main(struct timespec *start, cgi_query_t *query, FILE *cgi_str) {
                 l.watts[i] = -1.0;
             }
             if (pf_parse_file(pf, name) != MF_FAIL) {
-		sens = 0;
-		if ((ptr = cgi_get_param(query, "sens")))
-		    sens = strtoul(ptr, NULL, 16);
+                sens = 0;
+                if ((ptr = cgi_get_param(query, "sens")))
+                    sens = strtoul(ptr, NULL, 16);
                 cgi_output(&l, sens, cgi_str);
                 status = 0;
             }
             pf_free(pf);
         }
-    } else
+    }
+    else
         log_syserr("unable to chdir to '%s'", default_dir);
     return status;
 }

@@ -6,7 +6,8 @@
 #include <time.h>
 #include <sys/time.h>
 
-void log_db_err(PGconn *conn, const char *msg, ...) {
+void log_db_err(PGconn *conn, const char *msg, ...)
+{
     va_list ap;
     struct timeval tv;
     struct tm *tp;
@@ -23,9 +24,8 @@ void log_db_err(PGconn *conn, const char *msg, ...) {
     va_end(ap);
     ptr = PQerrorMessage(conn);
     while ((end = strchr(ptr, '\n'))) {
-	fprintf(stderr, log_hdr2, stamp, (int) (tv.tv_usec / 1000), prog_name);
-	fwrite(ptr, end - ptr + 1, 1, stderr);
-	ptr = end + 1;
+        fprintf(stderr, log_hdr2, stamp, (int) (tv.tv_usec / 1000), prog_name);
+        fwrite(ptr, end - ptr + 1, 1, stderr);
+        ptr = end + 1;
     }
 }
-

@@ -20,12 +20,15 @@ mf_status mapfile(const char *filename, void *user_data, mf_callback callback)
             if (data) {
                 status = callback(user_data, data, stb.st_size);
                 munmap(data, stb.st_size);
-            } else
+            }
+            else
                 log_syserr("unable to map file '%s' into memory", filename);
-        } else
+        }
+        else
             log_syserr("unable to fstat '%s'", filename);
         close(fd);
-    } else
+    }
+    else
         log_syserr("unable to open file '%s' for reading", filename);
 
     return status;

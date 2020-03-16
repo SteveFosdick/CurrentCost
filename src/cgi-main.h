@@ -23,6 +23,6 @@ extern void log_syserr(const char *msg, ...);
 
 extern char *cgi_urldec(char *dest, const char *src);
 extern char *cgi_get_param(cgi_query_t *query, const char *name);
-extern int cgi_main(struct timespec *start, cgi_query_t *query, FILE *cgi_str);
+extern int cgi_main(struct timespec *start, cgi_query_t *query, FILE * cgi_str);
 
 #endif

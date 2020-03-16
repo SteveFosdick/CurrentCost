@@ -37,19 +37,22 @@ static const char cnt_fmt[] =
     "  <td class=\"ru\">%'ld</td>"
     "</tr>";
 
-static void send_cpu(FILE *cgi_str, const char *label, time_t secs, unsigned long usec) {
+static void send_cpu(FILE *cgi_str, const char *label, time_t secs, unsigned long usec)
+{
     if (secs > 0)
-	fprintf(cgi_str, cpu_fmt1, label, secs, usec);
+        fprintf(cgi_str, cpu_fmt1, label, secs, usec);
     else if (usec > 0)
-	fprintf(cgi_str, cpu_fmt2, label, usec);
+        fprintf(cgi_str, cpu_fmt2, label, usec);
 }
 
-static void send_cnt(FILE *cgi_str, const char *label, unsigned long value) {
+static void send_cnt(FILE *cgi_str, const char *label, unsigned long value)
+{
     if (value > 0)
-	fprintf(cgi_str, cnt_fmt, label, value);
+        fprintf(cgi_str, cnt_fmt, label, value);
 }
 
-void cc_rusage(struct timespec *start, FILE *cgi_str) {
+void cc_rusage(struct timespec *start, FILE *cgi_str)
+{
     struct timespec end, elapsed;
     struct rusage ru;
 
@@ -57,19 +60,20 @@ void cc_rusage(struct timespec *start, FILE *cgi_str) {
     elapsed.tv_sec = end.tv_sec - start->tv_sec;
     elapsed.tv_nsec = end.tv_nsec - start->tv_nsec;
     if (elapsed.tv_nsec < 0) {
-	elapsed.tv_nsec += 1000000000;
-	elapsed.tv_sec--;
+        elapsed.tv_nsec += 1000000000;
+        elapsed.tv_sec--;
     }
     if (getrusage(RUSAGE_SELF, &ru) == 0) {
-	fwrite(rusage_html_head, sizeof(rusage_html_head)-1, 1, cgi_str);
-	send_cpu(cgi_str, "Elapsed Time", elapsed.tv_sec, elapsed.tv_nsec/1000);
-	send_cpu(cgi_str, "User CPU", ru.ru_utime.tv_sec, ru.ru_utime.tv_usec);
-	send_cpu(cgi_str, "System CPU", ru.ru_stime.tv_sec, ru.ru_stime.tv_usec);
-	send_cnt(cgi_str, "Page reclaims", ru.ru_minflt);
-	send_cnt(cgi_str, "Page faults", ru.ru_majflt);
-	send_cnt(cgi_str, "Blocks in", ru.ru_inblock);
-	send_cnt(cgi_str, "Blocks out", ru.ru_oublock);
-	fwrite(rusage_html_tail, sizeof(rusage_html_tail)-1, 1, cgi_str);
-    } else
-	log_syserr("Unable to get resource usage");
+        fwrite(rusage_html_head, sizeof(rusage_html_head) - 1, 1, cgi_str);
+        send_cpu(cgi_str, "Elapsed Time", elapsed.tv_sec, elapsed.tv_nsec / 1000);
+        send_cpu(cgi_str, "User CPU", ru.ru_utime.tv_sec, ru.ru_utime.tv_usec);
+        send_cpu(cgi_str, "System CPU", ru.ru_stime.tv_sec, ru.ru_stime.tv_usec);
+        send_cnt(cgi_str, "Page reclaims", ru.ru_minflt);
+        send_cnt(cgi_str, "Page faults", ru.ru_majflt);
+        send_cnt(cgi_str, "Blocks in", ru.ru_inblock);
+        send_cnt(cgi_str, "Blocks out", ru.ru_oublock);
+        fwrite(rusage_html_tail, sizeof(rusage_html_tail) - 1, 1, cgi_str);
+    }
+    else
+        log_syserr("Unable to get resource usage");
 }

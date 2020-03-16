@@ -52,7 +52,7 @@ static const char form_tail[] =
 
 /* *INDENT-ON* */
 
-static void send_labels(time_t start, time_t end, time_t delta, time_t step, FILE *cgi_str)
+static void send_labels(time_t start, time_t end, time_t delta, time_t step, FILE * cgi_str)
 {
     time_t label_step, label;
     const char *label_fmt;
@@ -65,13 +65,16 @@ static void send_labels(time_t start, time_t end, time_t delta, time_t step, FIL
             label_step = 360;
         else
             label_step = 1800;
-    } else if (delta <= SECS_IN_DAY) {
+    }
+    else if (delta <= SECS_IN_DAY) {
         label_step = SECS_IN_HOUR * 2;
         label_fmt = "%H";
-    } else if (delta <= SECS_IN_WEEK) {
+    }
+    else if (delta <= SECS_IN_WEEK) {
         label_step = SECS_IN_DAY;
         label_fmt = "%a";
-    } else {
+    }
+    else {
         label_step = 86400 * 4;
         label_fmt = "%d";
     }
@@ -86,14 +89,12 @@ static void send_labels(time_t start, time_t end, time_t delta, time_t step, FIL
     }
 }
 
-static void send_hist_link(time_t start, time_t end, const char *desc,
-			   unsigned sens, FILE *cgi_str)
+static void send_hist_link(time_t start, time_t end, const char *desc, unsigned sens, FILE *cgi_str)
 {
-    fprintf(cgi_str, "<a href=\"%scc-history.cgi?start=%lu&end=%lu&sens=%x\">%s</a>&nbsp;\n",
-	    base_url, start, end, sens, desc);
+    fprintf(cgi_str, "<a href=\"%scc-history.cgi?start=%lu&end=%lu&sens=%x\">%s</a>&nbsp;\n", base_url, start, end, sens, desc);
 }
 
-static void send_navlinks(time_t start, time_t end, time_t delta, unsigned sens, FILE *cgi_str)
+static void send_navlinks(time_t start, time_t end, time_t delta, unsigned sens, FILE * cgi_str)
 {
     time_t half = delta / 2;
     time_t qtr = delta / 4;
@@ -110,21 +111,20 @@ static void send_navlinks(time_t start, time_t end, time_t delta, unsigned sens,
     html_puts("    </p>\n", cgi_str);
 }
 
-static void send_checkboxes(time_t start, time_t end, unsigned sens, FILE *cgi_str) {
+static void send_checkboxes(time_t start, time_t end, unsigned sens, FILE *cgi_str)
+{
     int i;
     const char *chk;
-    
+
     fprintf(cgi_str, form_head, start, end);
     for (i = 0; i < MAX_SENSOR; i++) {
-	chk = sens & (1 << i) ? "" : " checked";
-	fprintf(cgi_str, "<input type=\"checkbox\" name=\"s%d\" value=\"on\"%s>&nbsp;%s\n",
-		i, chk, sensor_names[i]);
+        chk = sens & (1 << i) ? "" : " checked";
+        fprintf(cgi_str, "<input type=\"checkbox\" name=\"s%d\" value=\"on\"%s>&nbsp;%s\n", i, chk, sensor_names[i]);
     }
-    fwrite(form_tail, sizeof(form_tail)-1, 1, cgi_str);
+    fwrite(form_tail, sizeof(form_tail) - 1, 1, cgi_str);
 }
 
-static int cgi_history(struct timespec *prog_start, time_t start, time_t end,
-		       unsigned sens, FILE *cgi_str)
+static int cgi_history(struct timespec *prog_start, time_t start, time_t end, unsigned sens, FILE *cgi_str)
 {
     int status, i;
     time_t delta, step;
@@ -141,19 +141,19 @@ static int cgi_history(struct timespec *prog_start, time_t start, time_t end,
         log_msg("from %s to %s", tm_from, tm_to);
         if ((hc = hist_get(start, end, step))) {
             status = 0;
-            fwrite(http_hdr, sizeof(http_hdr)-1, 1, cgi_str);
+            fwrite(http_hdr, sizeof(http_hdr) - 1, 1, cgi_str);
             html_send_top(cgi_str);
             fprintf(cgi_str, html_middle, tm_from, tm_to);
             send_navlinks(start, end, delta, sens, cgi_str);
             fprintf(cgi_str, graph_head, tm_from, tm_to);
             for (i = 0; i < MAX_SENSOR; i++) {
-		if (!(sens & (1 << i))) {
-		    if (hc->flags[i]) {
-			fprintf(cgi_str, "g.data(\"%s\", ", sensor_names[i]);
-			hist_js_sens_out(hc, i, cgi_str);
-			html_puts(");\n", cgi_str);
-		    }
-		}
+                if (!(sens & (1 << i))) {
+                    if (hc->flags[i]) {
+                        fprintf(cgi_str, "g.data(\"%s\", ", sensor_names[i]);
+                        hist_js_sens_out(hc, i, cgi_str);
+                        html_puts(");\n", cgi_str);
+                    }
+                }
             }
             html_puts("g.data(\"Total Consumption\", ", cgi_str);
             hist_js_total_out(hc, cgi_str);
@@ -163,14 +163,16 @@ static int cgi_history(struct timespec *prog_start, time_t start, time_t end,
             html_puts(");\n", cgi_str);
             send_labels(start, end, delta, step, cgi_str);
             hist_free(hc);
-            fwrite(graph_end, sizeof(graph_end)-1, 1, cgi_str);
+            fwrite(graph_end, sizeof(graph_end) - 1, 1, cgi_str);
             send_navlinks(start, end, delta, sens, cgi_str);
-	    send_checkboxes(start, end, sens, cgi_str);
-	    cc_rusage(prog_start, cgi_str);
+            send_checkboxes(start, end, sens, cgi_str);
+            cc_rusage(prog_start, cgi_str);
             html_send_tail(cgi_str);
-        } else
+        }
+        else
             status = 3;
-    } else {
+    }
+    else {
         log_syserr("unable to chdir to '%s'", default_dir);
         status = 2;
     }
@@ -187,45 +189,48 @@ static time_t parse_limit(const char *value, time_t now)
     return n;
 }
 
-static int which_sensors(cgi_query_t *query) {
+static int which_sensors(cgi_query_t *query)
+{
     int i;
     unsigned bits = 0;
     char name[3], *ptr;
 
     if ((ptr = cgi_get_param(query, "sens")))
-	bits = strtoul(ptr, NULL, 16);
+        bits = strtoul(ptr, NULL, 16);
     else {
-	strcpy(name, "sx");
-	for (i = 0; i < MAX_SENSOR; i++) {
-	    name[1] = '0' + i;
-	    if ((ptr = cgi_get_param(query, name)) == NULL || strcmp(ptr, "on"))
-		bits |= (1 << i);
-	}
+        strcpy(name, "sx");
+        for (i = 0; i < MAX_SENSOR; i++) {
+            name[1] = '0' + i;
+            if ((ptr = cgi_get_param(query, name)) == NULL || strcmp(ptr, "on"))
+                bits |= (1 << i);
+        }
     }
     return bits;
 }
 
-int cgi_main(struct timespec *start, cgi_query_t *query, FILE *cgi_str) {
+int cgi_main(struct timespec *start, cgi_query_t *query, FILE *cgi_str)
+{
     int status = 0;
     const char *start_str, *end_str;
     time_t start_secs, end_secs;
 
     if ((start_str = cgi_get_param(query, "start")) == NULL) {
-	log_msg("missing 'start' parameter");
-	status = 1;
+        log_msg("missing 'start' parameter");
+        status = 1;
     }
     if ((end_str = cgi_get_param(query, "end")) == NULL) {
-	log_msg("missing 'end' parameter");
-	status = 1;
+        log_msg("missing 'end' parameter");
+        status = 1;
     }
     if (status == 0) {
-	start_secs = parse_limit(start_str, start->tv_sec);
-	end_secs = parse_limit(end_str, start->tv_sec);
-	if (end_secs <= start_secs) {
-	    log_msg("end must be greater than start");
-	    status = 1;
-	} else
-	    status = cgi_history(start, start_secs, end_secs, which_sensors(query), cgi_str);
+        start_secs = parse_limit(start_str, start->tv_sec);
+        end_secs = parse_limit(end_str, start->tv_sec);
+        if (end_secs <= start_secs) {
+            log_msg("end must be greater than start");
+            status = 1;
+        }
+        else
+            status = cgi_history(start, start_secs, end_secs, which_sensors(query), cgi_str);
     }
     return status;
 }

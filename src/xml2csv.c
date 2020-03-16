@@ -14,8 +14,7 @@ static mf_status sample_cb(pf_context * ctx, pf_sample * smp)
     char tmstr[ISO_DATE_LEN];
     FILE *fp = ctx->user_data;
     strftime(tmstr, sizeof tmstr, date_iso, gmtime(&smp->timestamp));
-    fprintf(fp, "%s,%g,%d,%g\n", tmstr, smp->temp, smp->sensor,
-            smp->data.watts);
+    fprintf(fp, "%s,%g,%d,%g\n", tmstr, smp->temp, smp->sensor, smp->data.watts);
     return MF_SUCCESS;
 }
 
@@ -49,13 +48,15 @@ int main(int argc, char **argv)
                     if (pf_parse_file(pf, arg) == MF_FAIL)
                         status = 3;
                     fclose(fp);
-                } else {
+                }
+                else {
                     log_syserr("unable to open file '%s' for writing", csv);
                     status = 2;
                 }
             }
         }
-    } else
+    }
+    else
         status = 1;
     return status;
 }

@@ -24,16 +24,16 @@ extern file_logger_t *file_logger_new(void)
     return NULL;
 }
 
-extern void file_logger_free(file_logger_t *file_logger)
+extern void file_logger_free(file_logger_t * file_logger)
 {
     if (file_logger) {
-	if (file_logger->xml_fp)
-	    fclose(file_logger->xml_fp);
-	free(file_logger);
+        if (file_logger->xml_fp)
+            fclose(file_logger->xml_fp);
+        free(file_logger);
     }
 }
 
-static void switch_file(file_logger_t *file_logger, time_t now_secs)
+static void switch_file(file_logger_t * file_logger, time_t now_secs)
 {
     struct tm *tp;
     FILE *nfp;
@@ -46,30 +46,30 @@ static void switch_file(file_logger_t *file_logger, time_t now_secs)
             fclose(file_logger->xml_fp);
         file_logger->xml_fp = nfp;
         file_logger->switch_secs = now_secs + 86400 - (now_secs % 86400);
-    } else
+    }
+    else
         log_syserr("unable to open file '%s' for append", file);
 }
 
-extern void file_logger_line(file_logger_t *file_logger, struct timeval *when,
-			     const char *line, const char *end)
+extern void file_logger_line(file_logger_t *file_logger, struct timeval *when, const char *line, const char *end)
 {
 
     const char *ptr;
     FILE *fp;
 
     if ((ptr = strstr(line, "<msg>"))) {
-	if (when->tv_sec >= file_logger->switch_secs)
-	    switch_file(file_logger, when->tv_sec);
-	if ((fp = file_logger->xml_fp)) {
-	    ptr += 5;
-	    fwrite(line, ptr - line, 1, fp);
-	    fprintf(fp, "<host-tstamp>%lu.%06lu</host-tstamp>",
-		    when->tv_sec, when->tv_usec);
-	    fwrite(ptr, end - ptr, 1, fp);
-	    fflush(fp);
-	}
-    } else {
-	if ((fp = file_logger->xml_fp))
-	    fwrite(line, end - line, 1, fp);
+        if (when->tv_sec >= file_logger->switch_secs)
+            switch_file(file_logger, when->tv_sec);
+        if ((fp = file_logger->xml_fp)) {
+            ptr += 5;
+            fwrite(line, ptr - line, 1, fp);
+            fprintf(fp, "<host-tstamp>%lu.%06lu</host-tstamp>", when->tv_sec, when->tv_usec);
+            fwrite(ptr, end - ptr, 1, fp);
+            fflush(fp);
+        }
+    }
+    else {
+        if ((fp = file_logger->xml_fp))
+            fwrite(line, end - line, 1, fp);
     }
 }

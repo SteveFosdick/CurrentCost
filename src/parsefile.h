@@ -47,8 +47,7 @@ extern void pf_free(pf_context * ctx);
 
 extern mf_status pf_filter_all(pf_context * ctx, time_t ts);
 extern mf_status pf_default_pulse_cb(pf_context * ctx, pf_sample * smp);
-extern mf_status pf_parse_line(void *user_data,
-                               const void *file_data, size_t file_size);
+extern mf_status pf_parse_line(void *user_data, const void *file_data, size_t file_size);
 
 #define pf_parse_file(ctx, file) \
     tf_parse_file(file, ctx, ctx->file_cb, pf_parse_line)

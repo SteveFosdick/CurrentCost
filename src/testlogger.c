@@ -16,7 +16,8 @@ int main(int argc, char **argv)
             logger_data(l, buffer, nbytes);
         logger_free(l);
         return 0;
-    } else {
+    }
+    else {
         log_syserr("unable to allocate logger");
         return 1;
     }

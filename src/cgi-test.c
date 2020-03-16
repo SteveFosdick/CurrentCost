@@ -50,46 +50,48 @@ static const char html_tail[] =
     "  </body>\n"
     "</html>\n";
 
-int cgi_main(struct timespec *start, cgi_query_t *query, FILE *cgi_str) {
+int cgi_main(struct timespec *start, cgi_query_t *query, FILE *cgi_str)
+{
     const char *fail;
     int fcount, np;
     cgi_param_t *p;
     char **env_ptr, *env_entry, *sep;
 
     if ((fail = cgi_get_param(query, "fail"))) {
-	fcount = atoi(fail);
-	if (fcount == 0)
-	    log_msg("Failure mode with count=0");
-	else
-	    while (fcount--)
-		log_msg("failure, count=%d", fcount);
-	return 1;
-    } else {
-	fwrite(html_head, sizeof(html_head)-1, 1, cgi_str);
-	np = query->nparam;
-	p = query->params;
-	while (np--) {
-	    html_puts("<tr><td>", cgi_str);
-	    html_esc(p->name, cgi_str);
-	    html_puts("</td><td>", cgi_str);
-	    html_esc(p->value, cgi_str);
-	    html_puts("</td></tr>\n", cgi_str);
-	}
-	fwrite(html_mid, sizeof(html_mid)-1, 1, cgi_str);
-	for (env_ptr = environ; (env_entry = *env_ptr++); ) {
-	    html_puts("<tr><td>", cgi_str);
-	    if ((sep = strchr(env_entry, '='))) {
-		*sep = '\0';
-		html_esc(env_entry, cgi_str);
-		*sep = '=';
-		html_puts("</td><td>", cgi_str);
-		html_esc(sep+1, cgi_str);
-	    }
-	    else
-		html_esc(env_entry, cgi_str);
-	    html_puts("</td></tr>\n", cgi_str);
-	}
-	fwrite(html_tail, sizeof(html_tail)-1, 1, cgi_str);
-	return 0;
+        fcount = atoi(fail);
+        if (fcount == 0)
+            log_msg("Failure mode with count=0");
+        else
+            while (fcount--)
+                log_msg("failure, count=%d", fcount);
+        return 1;
+    }
+    else {
+        fwrite(html_head, sizeof(html_head) - 1, 1, cgi_str);
+        np = query->nparam;
+        p = query->params;
+        while (np--) {
+            html_puts("<tr><td>", cgi_str);
+            html_esc(p->name, cgi_str);
+            html_puts("</td><td>", cgi_str);
+            html_esc(p->value, cgi_str);
+            html_puts("</td></tr>\n", cgi_str);
+        }
+        fwrite(html_mid, sizeof(html_mid) - 1, 1, cgi_str);
+        for (env_ptr = environ; (env_entry = *env_ptr++);) {
+            html_puts("<tr><td>", cgi_str);
+            if ((sep = strchr(env_entry, '='))) {
+                *sep = '\0';
+                html_esc(env_entry, cgi_str);
+                *sep = '=';
+                html_puts("</td><td>", cgi_str);
+                html_esc(sep + 1, cgi_str);
+            }
+            else
+                html_esc(env_entry, cgi_str);
+            html_puts("</td></tr>\n", cgi_str);
+        }
+        fwrite(html_tail, sizeof(html_tail) - 1, 1, cgi_str);
+        return 0;
     }
 }

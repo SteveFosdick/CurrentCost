@@ -10,10 +10,8 @@ typedef enum {
     MF_FAIL
 } mf_status;
 
-typedef mf_status(*mf_callback) (void *user_data,
-                                 const void *file_data, size_t file_size);
+typedef mf_status(*mf_callback) (void *user_data, const void *file_data, size_t file_size);
 
-extern mf_status mapfile(const char *filename,
-                         void *user_data, mf_callback callback);
+extern mf_status mapfile(const char *filename, void *user_data, mf_callback callback);
 
 #endif

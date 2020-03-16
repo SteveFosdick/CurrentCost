@@ -49,12 +49,14 @@ int main(int argc, char **argv)
                 if (pf_parse_file(pf, arg) == PF_FAIL)
                     status = 3;
                 fclose(fp);
-            } else {
+            }
+            else {
                 log_syserr("unable to open file '%s' for writing", dat);
                 status = 2;
             }
         }
-    } else
+    }
+    else
         status = 1;
     return status;
 }

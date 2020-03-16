@@ -5,8 +5,7 @@ typedef struct {
     void *user_data;
 } textfile_t;
 
-mf_status tf_parse_cb_forward(void *user_data,
-                              const void *file_data, size_t file_size)
+mf_status tf_parse_cb_forward(void *user_data, const void *file_data, size_t file_size)
 {
 
     textfile_t *tf = (textfile_t *) user_data;
@@ -24,8 +23,7 @@ mf_status tf_parse_cb_forward(void *user_data,
     return status;
 }
 
-mf_status tf_parse_cb_backward(void *user_data,
-                               const void *file_data, size_t file_size)
+mf_status tf_parse_cb_backward(void *user_data, const void *file_data, size_t file_size)
 {
 
     textfile_t *tf = (textfile_t *) user_data;
@@ -43,8 +41,7 @@ mf_status tf_parse_cb_backward(void *user_data,
     return status;
 }
 
-mf_status tf_parse_file(const char *filename, void *user_data,
-                        mf_callback file_cb, mf_callback line_cb)
+mf_status tf_parse_file(const char *filename, void *user_data, mf_callback file_cb, mf_callback line_cb)
 {
 
     textfile_t tf;

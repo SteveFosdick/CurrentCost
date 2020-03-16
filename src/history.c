@@ -45,9 +45,9 @@ static mf_status sample_cb(pf_context * pf, pf_sample * smp)
                 sens_ptr->count++;
                 ctx->flags[sens_num] = 'W';
             }
-        } else
-            log_msg("watt point with timestamp %lu is too big",
-                    smp->timestamp);
+        }
+        else
+            log_msg("watt point with timestamp %lu is too big", smp->timestamp);
     }
     return MF_SUCCESS;
 }
@@ -76,8 +76,7 @@ static mf_status filter_cb_back(pf_context * pf, time_t ts)
 
 static inline int same_day(struct tm *a, struct tm *b)
 {
-    return a->tm_mday == b->tm_mday
-        && a->tm_mon == b->tm_mon && a->tm_year == b->tm_year;
+    return a->tm_mday == b->tm_mday && a->tm_mon == b->tm_mon && a->tm_year == b->tm_year;
 }
 
 #define SECS_IN_DAY (24 * 60 * 60)
@@ -148,20 +147,20 @@ static void crunch_data(hist_context * ctx)
                 apps += value;
         }
         if (point->sensors[9].mean > 0) {
-	    // As the import meter is showing a reading this means the total
-	    // consumption is more than the solar panels are generating so
-	    // it is sum of the solar generation meter and the import meter
-	    
+            // As the import meter is showing a reading this means the total
+            // consumption is more than the solar panels are generating so
+            // it is sum of the solar generation meter and the import meter
+
             total = point->sensors[8].mean + point->sensors[9].mean;
-	}
+        }
         else {
-	    // The import meter is at zero which means some of the energy
-	    // from the solar panels is being exported.  In this case the
-	    // consumption in the house is the solar generation meter less
-	    // the clamp sensor, which in this case is works as an export meter
-	    
+            // The import meter is at zero which means some of the energy
+            // from the solar panels is being exported.  In this case the
+            // consumption in the house is the solar generation meter less
+            // the clamp sensor, which in this case is works as an export meter
+
             total = point->sensors[8].mean - point->sensors[0].mean;
-	}
+        }
         point->total = total;
         point->others = total - apps;
         if (point->temp_count > 0)
@@ -186,10 +185,12 @@ hist_context *hist_get(time_t from, time_t to, int step)
                 crunch_data(ctx);
                 return ctx;
             }
-        } else
+        }
+        else
             log_syserr("unable to allocate space for history points");
         free(ctx);
-    } else
+    }
+    else
         log_syserr("unable to allocate space for history context");
     return NULL;
 }
@@ -200,7 +201,7 @@ void hist_free(hist_context * ctx)
     free(ctx);
 }
 
-void hist_js_temp_out(hist_context * ctx, FILE *fp)
+void hist_js_temp_out(hist_context * ctx, FILE * fp)
 {
     hist_point *point;
     double cur_value = 0.0, new_value;
@@ -215,7 +216,7 @@ void hist_js_temp_out(hist_context * ctx, FILE *fp)
     putc(']', fp);
 }
 
-void hist_js_sens_out(hist_context * ctx, int sensor, FILE *fp)
+void hist_js_sens_out(hist_context * ctx, int sensor, FILE * fp)
 {
     hist_point *point;
     double cur_value = 0.0, new_value;
@@ -235,7 +236,7 @@ void hist_js_sens_out(hist_context * ctx, int sensor, FILE *fp)
     }
 }
 
-void hist_js_total_out(hist_context * ctx, FILE *fp)
+void hist_js_total_out(hist_context * ctx, FILE * fp)
 {
     hist_point *point;
     double cur_value = 0.0, new_value;
@@ -250,7 +251,7 @@ void hist_js_total_out(hist_context * ctx, FILE *fp)
     putc(']', fp);
 }
 
-void hist_js_others_out(hist_context * ctx, FILE *fp)
+void hist_js_others_out(hist_context * ctx, FILE * fp)
 {
     hist_point *point;
     double cur_value = 0.0, new_value;
