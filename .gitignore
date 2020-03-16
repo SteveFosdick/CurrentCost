@@ -1,0 +1,17 @@
+currentcost.geany
+src/*.gch
+obj-armv5tel/*.o
+obj-x86_64/*.o
+obj-x86_64/ascii-clean
+obj-x86_64/cc-ftdi
+obj-x86_64/cc-history.cgi
+obj-x86_64/cc-now.cgi
+obj-x86_64/cc-picker.cgi
+obj-x86_64/cc-termios
+obj-x86_64/cgi-test
+obj-x86_64/maxlen
+obj-x86_64/test-db-logger
+obj-x86_64/ts2unix
+obj-x86_64/xml2csv
+obj-x86_64/xml2pg
+obj-x86_64/xml2sqlite
