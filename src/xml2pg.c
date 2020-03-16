@@ -1,5 +1,6 @@
 #include "cc-defs.h"
 #include "cc-common.h"
+#include "pg-common.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,106 +9,59 @@
 
 const char prog_name[] = "xml2pg";
 
-static char *find_tok(const char *pat, char *str)
+static void insert(PGconn *conn, sample_t *smp, const char *stmt)
 {
-    const char *pat_ptr;
-    char *str_ptr;
-    int ch;
-
-    while (*str) {
-        str_ptr = str;
-        pat_ptr = pat;
-        while ((ch = *pat_ptr++) && ch == *str_ptr)
-            str_ptr++;
-        if (!ch)
-            return str_ptr;
-        str++;
-    }
-    return NULL;
+    char tstamp[TIME_STAMP_SIZE];
+    struct tm *tp = gmtime(&smp->when.tv_sec);
+    smp->lengths[0] = snprintf(tstamp, sizeof(tstamp), "%04d-%02d-%02d %02d:%02d:%02d.%06u", tp->tm_year + 1900, tp->tm_mon + 1, tp->tm_mday, tp->tm_hour, tp->tm_min, tp->tm_sec, (unsigned)smp->when.tv_nsec);
+    smp->values[0] = tstamp;
+    PGresult *res = PQexecPrepared(conn, stmt, NUM_COLS, smp->values, smp->lengths, NULL, 0);
+    if (res) {
+        if (PQresultStatus(res) != PGRES_COMMAND_OK)
+            log_db_err(conn, "unable to execute %s insert statment", stmt);
+        PQclear(res);
+}
+    else
+        log_syserr("out of memory executing %s SQL", stmt);
 }
 
-static char *parse_int(const char *pat, size_t min, size_t max, char *str, char **start)
-{
-    char *str_start, *str_ptr;
-    int ch;
-    size_t len;
-
-    if ((str_ptr = find_tok(pat, str))) {
-        *start = str_start = str_ptr;
-        do
-            ch = *str_ptr++;
-        while (ch >= '0' && ch <= '9');
-        if (ch == '<' || ch == '.') {
-            len = --str_ptr - str_start;
-            if (len >= min && len <= max) {
-                *str_ptr = '\0';
-                return ++str_ptr;
-            }
-        }
-    }
-    return NULL;
-}
-
-static char *parse_real(const char *pat, char *str, char **start)
-{
-    char *str_start, *str_ptr;
-    int ch;
-
-    if ((str_ptr = find_tok(pat, str))) {
-        *start = str_start = str_ptr;
-        do
-            ch = *str_ptr++;
-        while ((ch >= '0' && ch <= '9') || ch == '.');
-        if (ch == '<') {
-            if (--str_ptr > str_start) {
-                *str_ptr = '\0';
-                return ++str_ptr;
-            }
-        }
-    }
-    return NULL;
-}
-
-static void line_out(FILE *out, time_t secs, unsigned usecs, const char *sensor, const char *id, const char *tmpr, char *tail)
-{
-    struct tm *tp;
-
-    tp = gmtime(&secs);
-    fprintf(out, "%04d-%02d-%02d %02d:%02d:%02d.%06u\t%s\t%s\t%s\t%s\n", tp->tm_year + 1900, tp->tm_mon + 1, tp->tm_mday, tp->tm_hour, tp->tm_min, tp->tm_sec, usecs, sensor, id, tmpr, tail);
-}
-
-static void xml2pg(FILE *power, FILE *pulse, FILE *in)
+static void xml2pg(PGconn *conn, FILE *in)
 {
     char line[MAX_LINE_LEN];
-    char *ptr, *tstamp, *sensor, *tail, *tmpr, *id;
     time_t this_secs, last_secs;
     unsigned this_usecs, last_usecs;
 
     last_secs = last_usecs = 0;
     while (fgets(line, sizeof(line), in)) {
-        if ((ptr = parse_int("<host-tstamp>", 10, 11, line, &tstamp))) {
-            this_secs = atoi(tstamp);
-            this_usecs = strtol(ptr, &tail, 10);
-            if (tail > ptr) {
-                last_secs = this_secs;
-                last_usecs = this_usecs;
-            }
-            else if (this_secs <= last_secs) {
+        sample_t smp;
+        smp.ptr.data_ptr = smp.data;
+        const char *line_end = strchr(line, '\n');
+        if (!line_end) {
+            log_msg("line too long");
+            line_end = line + strlen(line);
+        }
+        const char *ptr = parse_real(&smp, 0, "<host-tstamp>", line, line_end);
+        if (ptr) {
+            char *tsend;
+            this_secs = strtoul(smp.values[0], &tsend, 10);
+            this_usecs = strtoul(tsend, NULL, 10);
+            if (this_secs < last_secs || (this_secs == last_secs && this_usecs <= last_usecs)) {
                 this_secs = last_secs;
                 this_usecs = ++last_usecs;
-                putc('.', stderr);
             }
             else {
                 last_secs = this_secs;
-                last_usecs = this_usecs = 0;
+                last_usecs = this_usecs;
             }
-            if ((ptr = parse_real("<tmpr>", ptr, &tmpr))) {
-                if ((ptr = parse_int("<sensor>", 1, 1, ptr, &sensor))) {
-                    if ((ptr = parse_int("<id>", 5, 5, ptr, &id))) {
-                        if (parse_real("<watts>", ptr, &tail))
-                            line_out(power, this_secs, this_usecs, sensor, id, tmpr, tail);
-                        else if (parse_int("<imp>", 1, 12, ptr, &tail))
-                            line_out(pulse, this_secs, this_usecs, sensor, id, tmpr, tail);
+            if ((ptr = parse_real(&smp, 3, "<tmpr>", ptr, line_end))) {
+                if ((ptr = parse_int(&smp, 1, "<sensor>", ptr, line_end))) {
+                    if ((ptr = parse_int(&smp, 2, "<id>", ptr, line_end))) {
+                        smp.when.tv_sec = this_secs;
+                        smp.when.tv_nsec = this_usecs;
+                        if (parse_real(&smp, 4, "<watts>", ptr, line_end))
+                            insert(conn, &smp, "power");
+                        else if (parse_int(&smp, 4, "<imp>", ptr, line_end))
+                            insert(conn, &smp, "pulse");
                     }
                 }
             }
@@ -118,39 +72,80 @@ static void xml2pg(FILE *power, FILE *pulse, FILE *in)
 int main(int argc, char **argv)
 {
     int status;
-    FILE *power, *pulse, *in;
-    const char *file;
-
-    if ((power = fopen("power.pg", "w"))) {
-        if ((pulse = fopen("pulse.pg", "w"))) {
-            status = 0;
-            if (argc == 1)
-                xml2pg(power, pulse, stdin);
-            else {
-                while (--argc) {
-                    file = *++argv;
-                    if ((in = fopen(file, "r"))) {
-                        fprintf(stderr, "%s\n", file);
-                        xml2pg(power, pulse, in);
-                        fclose(in);
-                    }
-                    else {
-                        log_syserr("unable to open '%s' for reading", file);
-                        status = 3;
-                    }
-                }
-            }
-            fclose(pulse);
-        }
-        else {
-            log_syserr("unable to open pulse file pulse.pg for writing");
-            status = 2;
-        }
-        fclose(power);
+    if (--argc == 0) {
+        fputs("Usage: xml2pg <db-conn> [ <xml-file> ...]\n", stderr);
+        status = 1;
     }
     else {
-        log_syserr("unable to open power file power.pg for writing");
-        status = 2;
+        const char *db = *++argv;
+        PGconn *conn = PQconnectdb(db);
+        if (PQstatus(conn) != CONNECTION_OK) {
+            log_db_err(conn, "unable to connect to database '%s'", db);
+            status = 2;
+        }
+        else {
+            PGresult *res;
+            if ((res = PQexec(conn, "SET TIME ZONE UTC"))) {
+                if (PQresultStatus(res) == PGRES_COMMAND_OK) {
+                    PQclear(res);
+                    if ((res = PQprepare(conn, "power", power_sql, 0, NULL))) {
+                        if (PQresultStatus(res) == PGRES_COMMAND_OK) {
+                            PQclear(res);
+                            if ((res = PQprepare(conn, "pulse", pulse_sql, 0, NULL))) {
+                                if (PQresultStatus(res) == PGRES_COMMAND_OK) {
+                                    PQclear(res);
+                                    status = 0;
+                                    if (argc == 1)
+                                        xml2pg(conn, stdin);
+                                    else {
+                                        while (--argc) {
+                                            const char *file = *++argv;
+                                            FILE *in = fopen(file, "r");
+                                            if (in) {
+                                                fprintf(stderr, "%s\n", file);
+                                                xml2pg(conn, in);
+                                                fclose(in);
+                                            }
+                                            else {
+                                                log_syserr("unable to open '%s' for reading", file);
+                                                status = 3;
+                                            }
+                                        }
+                                    }
+                                }
+                                else {
+                                    log_db_err(conn, "error preparing pulse SQL");
+                                    PQclear(res);
+                                    status = 2;
+                                }
+                            }
+                            else {
+                                log_syserr("out of memory preparing pulse SQL");
+                                status = 2;
+                            }
+                        }
+                        else {
+                            log_db_err(conn, "error preparing power SQL");
+                            PQclear(res);
+                            status = 2;
+                        }
+                    }
+                    else {
+                        log_syserr("out of memory preparing power SQL");
+                        status = 2;
+                    }
+                }
+                else {
+                    log_db_err(conn, "error setting timezone");
+                    PQclear(res);
+                    status = 2;
+                }
+            }
+            else {
+                log_syserr("out of memory preparing time zone SQL");
+                status = 2;
+            }
+        }
     }
     return status;
 }

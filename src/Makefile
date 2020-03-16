@@ -1,6 +1,6 @@
 all: cc-termios cc-ftdi xml2csv ascii-clean cc-now.cgi cc-history.cgi cc-picker.cgi cgi-test test-db-logger xml2pg xml2sqlite ts2unix maxlen
 
-DAEMON_MODULES = logger.o file-logger.o db-logger-pg.o daemon.o cc-common.o
+DAEMON_MODULES = logger.o file-logger.o db-logger-pg.o pg-common.o daemon.o cc-common.o
 
 CC_TERMIOS_MODULES = cc-termios.o $(DAEMON_MODULES)
 
@@ -50,12 +50,12 @@ TEST_LOGGER_MODULES = testlogger.o logger.o file-logger.o db-logger-pg.o cc-comm
 testlogger: $(TEST_LOGGER_MODULES)
 	$(CC) $(LDFLAGS) -o testlogger $(TEST_LOGGER_MODULES)
 
-TEST_DB_LOGGER_MODULES = test-db-logger.o db-logger-pg.o cc-common.o
+TEST_DB_LOGGER_MODULES = test-db-logger.o db-logger-pg.o pg-common.o cc-common.o
 
 test-db-logger: $(TEST_DB_LOGGER_MODULES)
 	$(CC) $(LDFLAGS) -o test-db-logger $(TEST_DB_LOGGER_MODULES) -lpq -lpthread
 
-XML2PG_MODULES = xml2pg.o db-logger-pg.o  cc-common.o
+XML2PG_MODULES = xml2pg.o db-logger-pg.o pg-common.o cc-common.o
 
 xml2pg: $(XML2PG_MODULES)
 	$(CC) $(LDFLAGS) -o xml2pg $(XML2PG_MODULES) -lpq -lpthread
@@ -81,6 +81,7 @@ history.o:  cgi-main.h cc-html.h history.h parsefile.h textfile.h
 logger.o:  cc-defs.h cc-common.h db-logger.h file-logger.h logger.h
 mapfile.o:  cc-common.h mapfile.h
 parsefile.o:  cc-common.h parsefile.h textfile.h
+pg-common.o: cc-common.h pg-common.h
 test-db-logger.o:  cc-defs.h cc-common.h db-logger.h logger.h
 testlogger.o:  cc-common.h logger.h
 textfile.o:  textfile.h
