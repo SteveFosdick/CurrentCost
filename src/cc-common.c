@@ -16,14 +16,14 @@ const char log_hdr2[] = "%s.%03d %s: ";
 
 static void log_common(const char *msg, va_list ap)
 {
-    struct timeval tv;
+    struct timespec tv;
     struct tm *tp;
     char stamp[24];
 
-    gettimeofday(&tv, NULL);
+    clock_gettime(CLOCK_REALTIME, &tv);
     tp = localtime(&tv.tv_sec);
     strftime(stamp, sizeof stamp, log_hdr1, tp);
-    fprintf(stderr, log_hdr2, stamp, (int) (tv.tv_usec / 1000), prog_name);
+    fprintf(stderr, log_hdr2, stamp, (int) (tv.tv_nsec / 1000000), prog_name);
     vfprintf(stderr, msg, ap);
 }
 

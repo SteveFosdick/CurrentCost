@@ -12,14 +12,14 @@
 
 #define NUM_COLS  5
 #define MAX_DATA  (NUM_COLS * 20)
-#define TIME_STAMP_SIZE 24
+#define TIME_STAMP_SIZE 32
 #define RETRY_WAIT 30
 
 typedef struct sample sample_t;
 
 struct sample {
     sample_t *next;
-    struct timeval when;
+    struct timespec when;
     union {
         const char *stmt;
         char *data_ptr;
@@ -36,7 +36,7 @@ struct _db_logger_t {
     pthread_cond_t wait_data;
     sample_t *head;
     sample_t *tail;
-    struct timeval last;
+    struct timespec last;
 };
 
 static const char power_sql[] =
@@ -50,22 +50,22 @@ static const char pulse_sql[] =
 static void log_db_err(PGconn *conn, const char *msg, ...)
 {
     va_list ap;
-    struct timeval tv;
+    struct timespec tv;
     struct tm *tp;
     char stamp[24];
     const char *ptr, *end;
 
-    gettimeofday(&tv, NULL);
+    clock_gettime(CLOCK_REALTIME, &tv);
     tp = localtime(&tv.tv_sec);
     strftime(stamp, sizeof stamp, log_hdr1, tp);
-    fprintf(stderr, log_hdr2, stamp, (int) (tv.tv_usec / 1000), prog_name);
+    fprintf(stderr, log_hdr2, stamp, (int) (tv.tv_nsec / 1000000), prog_name);
     va_start(ap, msg);
     vfprintf(stderr, msg, ap);
     putc('\n', stderr);
     va_end(ap);
     ptr = PQerrorMessage(conn);
     while ((end = strchr(ptr, '\n'))) {
-        fprintf(stderr, log_hdr2, stamp, (int) (tv.tv_usec / 1000), prog_name);
+        fprintf(stderr, log_hdr2, stamp, (int) (tv.tv_nsec / 1000000), prog_name);
         fwrite(ptr, end - ptr + 1, 1, stderr);
         ptr = end + 1;
     }
@@ -151,14 +151,17 @@ static void db_exec(db_logger_t *db_logger, sample_t *smp)
     PGresult *res;
 
     /* avoid a primary key clash on timestamps */
-    if (smp->when.tv_sec == db_logger->last.tv_sec)
-        if (smp->when.tv_usec == db_logger->last.tv_usec)
-            smp->when.tv_usec++;
+    long this_usec = smp->when.tv_nsec / 1000;
+    if (smp->when.tv_sec == db_logger->last.tv_sec) {
+        long last_usec = db_logger->last.tv_nsec / 1000;
+        if (this_usec == last_usec)
+            this_usec++;
+    }
     db_logger->last = smp->when;
 
     smp->values[0] = tstamp;
     tp = gmtime(&smp->when.tv_sec);
-    smp->lengths[0] = snprintf(tstamp, sizeof(tstamp), "%04d-%02d-%02d %02d:%02d:%02d.%06u", tp->tm_year + 1900, tp->tm_mon + 1, tp->tm_mday, tp->tm_hour, tp->tm_min, tp->tm_sec, (unsigned) (smp->when.tv_usec));
+    smp->lengths[0] = snprintf(tstamp, sizeof(tstamp), "%04d-%02d-%02d %02d:%02d:%02d.%06u", tp->tm_year + 1900, tp->tm_mon + 1, tp->tm_mday, tp->tm_hour, tp->tm_min, tp->tm_sec, (unsigned)this_usec);
     res = PQexecPrepared(db_logger->conn, smp->ptr.stmt, NUM_COLS, smp->values, smp->lengths, NULL, 0);
     if (res) {
         if (PQresultStatus(res) != PGRES_COMMAND_OK) {
@@ -295,7 +298,7 @@ static void enqueue(db_logger_t *db_logger, sample_t *smp, const char *stmt)
     pthread_mutex_unlock(&db_logger->lock);
 }
 
-extern void db_logger_line(db_logger_t *db_logger, struct timeval *when, const char *line, const char *line_end)
+extern void db_logger_line(db_logger_t *db_logger, struct timespec *when, const char *line, const char *line_end)
 {
     const char *ptr;
     sample_t *smp;
@@ -333,7 +336,7 @@ extern db_logger_t *db_logger_new(const char *db_conn)
             db_logger->head = NULL;
             db_logger->tail = NULL;
             db_logger->last.tv_sec = 0;
-            db_logger->last.tv_usec = 0;
+            db_logger->last.tv_nsec = 0;
             if ((res = pthread_mutex_init(&db_logger->lock, NULL)) == 0)
                 if ((res = pthread_cond_init(&db_logger->wait_data, NULL)) == 0)
                     if ((res = pthread_create(&db_logger->thread, NULL, db_thread, db_logger)) == 0)

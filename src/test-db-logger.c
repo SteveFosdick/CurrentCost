@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 const char prog_name[] = "test-db-testlogger";
@@ -18,7 +19,7 @@ int main(int argc, char **argv)
 {
     db_logger_t *db_logger;
     int interactive = 0;
-    struct timeval when;
+    struct timespec when;
     char line[MAX_LINE_LEN + 1];
 
     if (argc != 2) {
@@ -34,7 +35,7 @@ int main(int argc, char **argv)
         prompt();
     }
     while (fgets(line, sizeof(line), stdin)) {
-        gettimeofday(&when, NULL);
+        clock_gettime(CLOCK_REALTIME, &when);
         db_logger_line(db_logger, &when, line, line + strlen(line));
         sleep(1);
         if (interactive)

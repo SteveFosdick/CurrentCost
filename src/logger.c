@@ -4,6 +4,8 @@
 #include "file-logger.h"
 #include "db-logger.h"
 
+#include <time.h>
+
 struct _logger_t {
     file_logger_t *file_logger;
     db_logger_t *db_logger;
@@ -43,8 +45,8 @@ extern void logger_free(logger_t * logger)
 
 static void invoke_loggers(logger_t *logger, char *end)
 {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
+    struct timespec tv;
+    clock_gettime(CLOCK_REALTIME, &tv);
     file_logger_line(logger->file_logger, &tv, logger->line, end);
     if (logger->db_logger)
         db_logger_line(logger->db_logger, &tv, logger->line, end);
