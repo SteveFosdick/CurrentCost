@@ -6,7 +6,7 @@
 #define MAX_LINE_LEN 1300
 
 #ifndef DEFAULT_DIR
-#define DEFAULT_DIR "/data/Misc/CurrentCost/"
+#define DEFAULT_DIR "/data/misc/CurrentCost/"
 #endif
 
 #ifndef BASE_URL
