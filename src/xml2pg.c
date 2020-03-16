@@ -9,20 +9,45 @@
 
 const char prog_name[] = "xml2pg";
 
-static void insert(PGconn *conn, sample_t *smp, const char *stmt)
+#define BATCH_SIZE 100
+
+static void insert(PGconn *conn, sample_t *smp, sample_t *smp_last)
 {
-    char tstamp[TIME_STAMP_SIZE];
-    struct tm *tp = gmtime(&smp->when.tv_sec);
-    smp->lengths[0] = snprintf(tstamp, sizeof(tstamp), "%04d-%02d-%02d %02d:%02d:%02d.%06u", tp->tm_year + 1900, tp->tm_mon + 1, tp->tm_mday, tp->tm_hour, tp->tm_min, tp->tm_sec, (unsigned)smp->when.tv_nsec);
-    smp->values[0] = tstamp;
-    PGresult *res = PQexecPrepared(conn, stmt, NUM_COLS, smp->values, smp->lengths, NULL, 0);
+    PGresult *res = PQexec(conn, "BEGIN");
     if (res) {
-        if (PQresultStatus(res) != PGRES_COMMAND_OK)
-            log_db_err(conn, "unable to execute %s insert statment", stmt);
-        PQclear(res);
-}
+        if (PQresultStatus(res) == PGRES_COMMAND_OK) {
+            PQclear(res);
+            while (smp < smp_last) {
+                char tstamp[TIME_STAMP_SIZE];
+                struct tm *tp = gmtime(&smp->when.tv_sec);
+                smp->lengths[0] = snprintf(tstamp, sizeof(tstamp), "%04d-%02d-%02d %02d:%02d:%02d.%06u", tp->tm_year + 1900, tp->tm_mon + 1, tp->tm_mday, tp->tm_hour, tp->tm_min, tp->tm_sec, (unsigned)smp->when.tv_nsec);
+                smp->values[0] = tstamp;
+                res = PQexecPrepared(conn, smp->ptr.stmt, NUM_COLS, smp->values, smp->lengths, NULL, 0);
+                if (res) {
+                    if (PQresultStatus(res) != PGRES_COMMAND_OK)
+                        log_db_err(conn, "unable to execute %s insert statment", smp->ptr.stmt);
+                    PQclear(res);
+                }
+                else
+                    log_syserr("out of memory executing %s SQL", smp->ptr.stmt);
+                smp++;
+            }
+            res = PQexec(conn, "COMMIT");
+            if (res) {
+                if (PQresultStatus(res) != PGRES_COMMAND_OK)
+                    log_db_err(conn, "unable to commit transaction");
+                PQclear(res);
+            }
+            else
+                log_syserr("out of memory commiting transaction");
+        }
+        else {
+            log_db_err(conn, "unable to start transaction");
+            PQclear(res);
+        }
+    }
     else
-        log_syserr("out of memory executing %s SQL", stmt);
+        log_syserr("out of memory starting transaction");
 }
 
 static void xml2pg(PGconn *conn, FILE *in)
@@ -30,20 +55,21 @@ static void xml2pg(PGconn *conn, FILE *in)
     char line[MAX_LINE_LEN];
     time_t this_secs, last_secs;
     unsigned this_usecs, last_usecs;
+    sample_t samples[BATCH_SIZE], *smp = samples;
+    sample_t *smp_last = samples + BATCH_SIZE;
 
     last_secs = last_usecs = 0;
     while (fgets(line, sizeof(line), in)) {
-        sample_t smp;
-        smp.ptr.data_ptr = smp.data;
+        smp->ptr.data_ptr = smp->data;
         const char *line_end = strchr(line, '\n');
         if (!line_end) {
             log_msg("line too long");
             line_end = line + strlen(line);
         }
-        const char *ptr = parse_real(&smp, 0, "<host-tstamp>", line, line_end);
+        const char *ptr = parse_real(smp, 0, "<host-tstamp>", line, line_end);
         if (ptr) {
             char *tsend;
-            this_secs = strtoul(smp.values[0], &tsend, 10);
+            this_secs = strtoul(smp->values[0], &tsend, 10);
             this_usecs = strtoul(tsend, NULL, 10);
             if (this_secs < last_secs || (this_secs == last_secs && this_usecs <= last_usecs)) {
                 this_secs = last_secs;
@@ -53,20 +79,26 @@ static void xml2pg(PGconn *conn, FILE *in)
                 last_secs = this_secs;
                 last_usecs = this_usecs;
             }
-            if ((ptr = parse_real(&smp, 3, "<tmpr>", ptr, line_end))) {
-                if ((ptr = parse_int(&smp, 1, "<sensor>", ptr, line_end))) {
-                    if ((ptr = parse_int(&smp, 2, "<id>", ptr, line_end))) {
-                        smp.when.tv_sec = this_secs;
-                        smp.when.tv_nsec = this_usecs;
-                        if (parse_real(&smp, 4, "<watts>", ptr, line_end))
-                            insert(conn, &smp, "power");
-                        else if (parse_int(&smp, 4, "<imp>", ptr, line_end))
-                            insert(conn, &smp, "pulse");
+            if ((ptr = parse_real(smp, 3, "<tmpr>", ptr, line_end))) {
+                if ((ptr = parse_int(smp, 1, "<sensor>", ptr, line_end))) {
+                    if ((ptr = parse_int(smp, 2, "<id>", ptr, line_end))) {
+                        smp->when.tv_sec = this_secs;
+                        smp->when.tv_nsec = this_usecs;
+                        if (parse_real(smp, 4, "<watts>", ptr, line_end))
+                            (smp++)->ptr.stmt = "power";
+                        else if (parse_int(smp, 4, "<imp>", ptr, line_end))
+                            (smp++)->ptr.stmt = "pulse";
+                        if (smp >= smp_last) {
+                            insert(conn, samples, smp);
+                            smp = samples;
+                        }
                     }
                 }
             }
         }
     }
+    if (smp >= smp_last)
+        insert(conn, samples, smp);
 }
 
 int main(int argc, char **argv)
